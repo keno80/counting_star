@@ -16,4 +16,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "counting_star"
 include(":app")
-
+include(":core")
+include(":data")
+include(":domain")
+include(":feature-home")
