@@ -9,6 +9,7 @@ import androidx.room.Room
 import com.countingstar.data.GreetingRepositoryImpl
 import com.countingstar.data.local.AccountDao
 import com.countingstar.data.local.AppDatabase
+import com.countingstar.data.local.CategoryDao
 import com.countingstar.data.local.GreetingDao
 import com.countingstar.data.local.LedgerDao
 import com.countingstar.domain.GreetingRepository
@@ -43,6 +44,9 @@ object DataModule {
 
     @Provides
     fun provideAccountDao(database: AppDatabase): AccountDao = database.accountDao()
+
+    @Provides
+    fun provideCategoryDao(database: AppDatabase): CategoryDao = database.categoryDao()
 
     @Provides
     @Singleton

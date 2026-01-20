@@ -8,6 +8,7 @@ import androidx.room.RoomDatabase
         GreetingEntity::class,
         LedgerEntity::class,
         AccountEntity::class,
+        CategoryEntity::class,
     ],
     version = 1,
     exportSchema = false,
@@ -18,4 +19,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun ledgerDao(): LedgerDao
 
     abstract fun accountDao(): AccountDao
+
+    abstract fun categoryDao(): CategoryDao
 }
