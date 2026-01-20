@@ -12,6 +12,7 @@ import com.countingstar.data.local.AppDatabase
 import com.countingstar.data.local.CategoryDao
 import com.countingstar.data.local.GreetingDao
 import com.countingstar.data.local.LedgerDao
+import com.countingstar.data.local.TagDao
 import com.countingstar.domain.GreetingRepository
 import dagger.Binds
 import dagger.Module
@@ -47,6 +48,9 @@ object DataModule {
 
     @Provides
     fun provideCategoryDao(database: AppDatabase): CategoryDao = database.categoryDao()
+
+    @Provides
+    fun provideTagDao(database: AppDatabase): TagDao = database.tagDao()
 
     @Provides
     @Singleton

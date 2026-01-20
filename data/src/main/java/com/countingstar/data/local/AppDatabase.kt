@@ -9,6 +9,8 @@ import androidx.room.RoomDatabase
         LedgerEntity::class,
         AccountEntity::class,
         CategoryEntity::class,
+        TagEntity::class,
+        TransactionTagCrossRef::class,
     ],
     version = 1,
     exportSchema = false,
@@ -21,4 +23,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun accountDao(): AccountDao
 
     abstract fun categoryDao(): CategoryDao
+
+    abstract fun tagDao(): TagDao
 }
