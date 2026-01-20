@@ -13,26 +13,29 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
-class GreetingRepositoryImpl @Inject constructor(
-    private val dataStore: DataStore<Preferences>,
-    private val greetingDao: GreetingDao,
-) : GreetingRepository {
-    private val greetingKey = stringPreferencesKey("greeting_text")
+class GreetingRepositoryImpl
+    @Inject
+    constructor(
+        private val dataStore: DataStore<Preferences>,
+        private val greetingDao: GreetingDao,
+    ) : GreetingRepository {
+        private val greetingKey = stringPreferencesKey("greeting_text")
 
-    override fun greetingFlow(): Flow<String> {
-        val dataStoreFlow = dataStore.data.map { preferences ->
-            preferences[greetingKey]
+        override fun greetingFlow(): Flow<String> {
+            val dataStoreFlow =
+                dataStore.data.map { preferences ->
+                    preferences[greetingKey]
+                }
+            val roomFlow = greetingDao.observeGreeting().map { it?.text }
+            return combine(dataStoreFlow, roomFlow) { dataStoreValue, roomValue ->
+                dataStoreValue ?: roomValue ?: "Counting Star"
+            }.distinctUntilChanged()
         }
-        val roomFlow = greetingDao.observeGreeting().map { it?.text }
-        return combine(dataStoreFlow, roomFlow) { dataStoreValue, roomValue ->
-            dataStoreValue ?: roomValue ?: "Counting Star"
-        }.distinctUntilChanged()
-    }
 
-    override suspend fun setGreeting(text: String) {
-        dataStore.edit { preferences ->
-            preferences[greetingKey] = text
+        override suspend fun setGreeting(text: String) {
+            dataStore.edit { preferences ->
+                preferences[greetingKey] = text
+            }
+            greetingDao.upsert(GreetingEntity(text = text))
         }
-        greetingDao.upsert(GreetingEntity(text = text))
     }
-}

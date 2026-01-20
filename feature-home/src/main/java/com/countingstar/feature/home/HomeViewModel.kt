@@ -11,10 +11,16 @@ import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
 @HiltViewModel
-class HomeViewModel @Inject constructor(
-    getGreetingUseCase: GetGreetingUseCase,
-    private val setGreetingUseCase: SetGreetingUseCase,
-) : ViewModel() {
-    val greeting: StateFlow<String> = getGreetingUseCase()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "Counting Star")
-}
+class HomeViewModel
+    @Inject
+    constructor(
+        private val getGreetingUseCase: GetGreetingUseCase,
+        private val setGreetingUseCase: SetGreetingUseCase,
+    ) : ViewModel() {
+        val greeting: StateFlow<String> =
+            getGreetingUseCase().stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5_000),
+                "Counting Star",
+            )
+    }

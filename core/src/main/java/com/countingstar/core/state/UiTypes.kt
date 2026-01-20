@@ -7,12 +7,19 @@ interface UiEvent
 interface UiEffect
 
 sealed interface Result<out T> {
-    data class Success<out T>(val data: T) : Result<T>
+    data class Success<out T>(
+        val data: T,
+    ) : Result<T>
 
-    data class Error(val error: AppError) : Result<Nothing>
+    data class Error(
+        val error: AppError,
+    ) : Result<Nothing>
 }
 
-sealed class AppError(open val userMessage: String, open val errorCode: String) {
+sealed class AppError(
+    open val userMessage: String,
+    open val errorCode: String,
+) {
     data class Network(
         override val userMessage: String,
         override val errorCode: String = "NETWORK",
@@ -44,12 +51,9 @@ sealed class AppError(open val userMessage: String, open val errorCode: String) 
     ) : AppError(userMessage, errorCode)
 }
 
-fun Throwable.toAppError(
-    userMessage: String = message ?: "Unknown error",
-): AppError {
-    return when (this) {
+fun Throwable.toAppError(userMessage: String = message ?: "Unknown error"): AppError =
+    when (this) {
         is IllegalArgumentException -> AppError.Validation(userMessage)
         is java.io.IOException -> AppError.Network(userMessage)
         else -> AppError.Unknown(userMessage)
     }
-}

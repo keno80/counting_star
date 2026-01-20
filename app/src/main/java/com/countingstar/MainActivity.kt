@@ -12,7 +12,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import com.countingstar.feature.home.HomeDestination
 import com.countingstar.feature.home.homeRoute
-import com.countingstar.ui.theme.CountingStarTheme
+import com.countingstar.ui.theme.countingStarTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -20,12 +20,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            CountingStarTheme {
+            countingStarTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
                 ) {
-                    CountingStarNavHost()
+                    countingStarNavHost()
                 }
             }
         }
@@ -33,11 +33,11 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun CountingStarNavHost() {
+private fun countingStarNavHost() {
     val navController = rememberNavController()
     NavHost(
         navController = navController,
-        startDestination = HomeDestination.route,
+        startDestination = HomeDestination.ROUTE,
     ) {
         homeRoute()
     }

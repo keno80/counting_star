@@ -6,20 +6,18 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 
 object HomeDestination {
-    const val route = "home"
+    const val ROUTE = "home"
 }
 
 fun NavGraphBuilder.homeRoute() {
-    composable(route = HomeDestination.route) {
-        HomeRoute()
+    composable(route = HomeDestination.ROUTE) {
+        homeRouteContent()
     }
 }
 
 @Composable
-fun HomeRoute(
-    viewModel: HomeViewModel = hiltViewModel(),
-) {
-    HomeScreen(
+fun homeRouteContent(viewModel: HomeViewModel = hiltViewModel()) {
+    homeScreen(
         greeting = viewModel.greeting,
     )
 }

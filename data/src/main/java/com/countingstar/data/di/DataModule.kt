@@ -2,8 +2,8 @@ package com.countingstar.data.di
 
 import android.content.Context
 import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
 import com.countingstar.data.GreetingRepositoryImpl
@@ -25,28 +25,25 @@ object DataModule {
     @Singleton
     fun provideDatabase(
         @ApplicationContext context: Context,
-    ): AppDatabase {
-        return Room.databaseBuilder(
-            context,
-            AppDatabase::class.java,
-            "counting_star.db",
-        ).build()
-    }
+    ): AppDatabase =
+        Room
+            .databaseBuilder(
+                context,
+                AppDatabase::class.java,
+                "counting_star.db",
+            ).build()
 
     @Provides
-    fun provideGreetingDao(
-        database: AppDatabase,
-    ): GreetingDao = database.greetingDao()
+    fun provideGreetingDao(database: AppDatabase): GreetingDao = database.greetingDao()
 
     @Provides
     @Singleton
     fun provideDataStore(
         @ApplicationContext context: Context,
-    ): DataStore<Preferences> {
-        return PreferenceDataStoreFactory.create(
+    ): DataStore<Preferences> =
+        PreferenceDataStoreFactory.create(
             produceFile = { context.preferencesDataStoreFile("settings") },
         )
-    }
 }
 
 @Module
@@ -54,7 +51,5 @@ object DataModule {
 abstract class RepositoryModule {
     @Binds
     @Singleton
-    abstract fun bindGreetingRepository(
-        impl: GreetingRepositoryImpl,
-    ): GreetingRepository
+    abstract fun bindGreetingRepository(impl: GreetingRepositoryImpl): GreetingRepository
 }
