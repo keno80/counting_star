@@ -21,6 +21,7 @@ class AddIncomeExpenseUseCase
     @Inject
     constructor(
         private val transactionRepository: TransactionRepository,
+        private val accountRepository: AccountRepository,
     ) {
         suspend operator fun invoke(params: AddIncomeExpenseParams): Transaction {
             require(params.amount > 0)
@@ -50,6 +51,22 @@ class AddIncomeExpenseUseCase
                     isDeleted = false,
                     deletedAt = null,
                 )
+            val balanceDelta =
+                when (params.type) {
+                    TransactionType.INCOME -> params.amount
+                    TransactionType.EXPENSE -> -params.amount
+                    TransactionType.TRANSFER -> 0L
+                }
+            if (balanceDelta != 0L) {
+                val account =
+                    requireNotNull(accountRepository.getAccountById(params.accountId)) {
+                        "Account not found"
+                    }
+                accountRepository.updateBalance(
+                    params.accountId,
+                    account.currentBalance + balanceDelta,
+                )
+            }
             transactionRepository.upsert(transaction)
             return transaction
         }

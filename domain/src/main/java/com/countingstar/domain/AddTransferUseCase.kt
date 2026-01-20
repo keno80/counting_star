@@ -18,6 +18,7 @@ class AddTransferUseCase
     @Inject
     constructor(
         private val transactionRepository: TransactionRepository,
+        private val accountRepository: AccountRepository,
     ) {
         suspend operator fun invoke(params: AddTransferParams): Transaction {
             require(params.amount > 0)
@@ -45,6 +46,22 @@ class AddTransferUseCase
                     isDeleted = false,
                     deletedAt = null,
                 )
+            val fromAccount =
+                requireNotNull(accountRepository.getAccountById(params.fromAccountId)) {
+                    "Account not found"
+                }
+            val toAccount =
+                requireNotNull(accountRepository.getAccountById(params.toAccountId)) {
+                    "Account not found"
+                }
+            accountRepository.updateBalance(
+                params.fromAccountId,
+                fromAccount.currentBalance - params.amount,
+            )
+            accountRepository.updateBalance(
+                params.toAccountId,
+                toAccount.currentBalance + params.amount,
+            )
             transactionRepository.upsert(transaction)
             return transaction
         }
