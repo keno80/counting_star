@@ -3,6 +3,7 @@ import java.util.Properties
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
     id("org.jetbrains.kotlin.plugin.serialization")
     id("com.google.dagger.hilt.android")
@@ -10,7 +11,7 @@ plugins {
 
 android {
     namespace = "com.countingstar"
-    compileSdk = 34
+    compileSdk = 35
 
     val keystorePropertiesFile = rootProject.file("key.properties")
     val keystoreProperties = Properties()
@@ -39,7 +40,7 @@ android {
     defaultConfig {
         applicationId = "com.countingstar"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 35
         versionCode = versionCodeValue
         versionName = versionNameValue
 
@@ -102,10 +103,6 @@ android {
         compose = true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.14"
-    }
-
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -117,7 +114,7 @@ dependencies {
     implementation(project(":data"))
     implementation(project(":feature-home"))
 
-    val composeBom = platform("androidx.compose:compose-bom:2024.06.00")
+    val composeBom = platform("androidx.compose:compose-bom:2026.01.00")
 
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.3")
