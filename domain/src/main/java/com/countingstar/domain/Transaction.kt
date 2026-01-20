@@ -8,19 +8,12 @@ data class Transaction(
     val currency: String,
     val occurredAt: Long,
     val note: String,
-
-    // Income/Expense fields
     val accountId: String? = null,
     val categoryId: String? = null,
-
-    // Transfer fields
     val fromAccountId: String? = null,
     val toAccountId: String? = null,
-
     val tagIds: List<String> = emptyList(),
     val merchantId: String? = null,
-
-    // Status
     val isDeleted: Boolean = false,
     val deletedAt: Long? = null,
 )
