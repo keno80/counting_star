@@ -1,5 +1,7 @@
 package com.countingstar.domain
 
+import kotlinx.coroutines.flow.Flow
+
 data class Account(
     val id: String,
     val ledgerId: String,
@@ -22,4 +24,26 @@ enum class AccountType {
     INVESTMENT,
     DEBT,
     OTHER,
+}
+
+interface AccountRepository {
+    fun observeAccountsByLedger(ledgerId: String): Flow<List<Account>>
+
+    suspend fun getAccountById(id: String): Account?
+
+    suspend fun upsert(account: Account)
+
+    suspend fun update(account: Account)
+
+    suspend fun deleteById(id: String)
+
+    suspend fun setActive(
+        id: String,
+        isActive: Boolean,
+    )
+
+    suspend fun updateBalance(
+        id: String,
+        balance: Long,
+    )
 }
