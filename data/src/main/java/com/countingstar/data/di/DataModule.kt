@@ -15,6 +15,7 @@ import com.countingstar.data.local.LedgerDao
 import com.countingstar.data.local.MerchantDao
 import com.countingstar.data.local.TagDao
 import com.countingstar.data.local.TransactionDao
+import com.countingstar.data.local.TransactionSplitDao
 import com.countingstar.domain.GreetingRepository
 import dagger.Binds
 import dagger.Module
@@ -59,6 +60,9 @@ object DataModule {
 
     @Provides
     fun provideTransactionDao(database: AppDatabase): TransactionDao = database.transactionDao()
+
+    @Provides
+    fun provideTransactionSplitDao(database: AppDatabase): TransactionSplitDao = database.transactionSplitDao()
 
     @Provides
     @Singleton

@@ -13,6 +13,7 @@ import androidx.room.RoomDatabase
         TransactionTagCrossRef::class,
         MerchantEntity::class,
         TransactionEntity::class,
+        TransactionSplitEntity::class,
     ],
     version = 1,
     exportSchema = false,
@@ -31,4 +32,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun merchantDao(): MerchantDao
 
     abstract fun transactionDao(): TransactionDao
+
+    abstract fun transactionSplitDao(): TransactionSplitDao
 }
