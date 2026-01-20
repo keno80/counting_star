@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
 import com.countingstar.data.GreetingRepositoryImpl
+import com.countingstar.data.local.AccountDao
 import com.countingstar.data.local.AppDatabase
 import com.countingstar.data.local.GreetingDao
 import com.countingstar.data.local.LedgerDao
@@ -39,6 +40,9 @@ object DataModule {
 
     @Provides
     fun provideLedgerDao(database: AppDatabase): LedgerDao = database.ledgerDao()
+
+    @Provides
+    fun provideAccountDao(database: AppDatabase): AccountDao = database.accountDao()
 
     @Provides
     @Singleton
