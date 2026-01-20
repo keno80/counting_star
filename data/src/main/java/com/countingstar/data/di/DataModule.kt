@@ -6,7 +6,13 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
+import com.countingstar.data.AccountRepositoryImpl
+import com.countingstar.data.CategoryRepositoryImpl
 import com.countingstar.data.GreetingRepositoryImpl
+import com.countingstar.data.LedgerRepositoryImpl
+import com.countingstar.data.MerchantRepositoryImpl
+import com.countingstar.data.TagRepositoryImpl
+import com.countingstar.data.TransactionRepositoryImpl
 import com.countingstar.data.local.AccountDao
 import com.countingstar.data.local.AppDatabase
 import com.countingstar.data.local.CategoryDao
@@ -16,7 +22,13 @@ import com.countingstar.data.local.MerchantDao
 import com.countingstar.data.local.TagDao
 import com.countingstar.data.local.TransactionDao
 import com.countingstar.data.local.TransactionSplitDao
+import com.countingstar.domain.AccountRepository
+import com.countingstar.domain.CategoryRepository
 import com.countingstar.domain.GreetingRepository
+import com.countingstar.domain.LedgerRepository
+import com.countingstar.domain.MerchantRepository
+import com.countingstar.domain.TagRepository
+import com.countingstar.domain.TransactionRepository
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -80,4 +92,28 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindGreetingRepository(impl: GreetingRepositoryImpl): GreetingRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindLedgerRepository(impl: LedgerRepositoryImpl): LedgerRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAccountRepository(impl: AccountRepositoryImpl): AccountRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindCategoryRepository(impl: CategoryRepositoryImpl): CategoryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTagRepository(impl: TagRepositoryImpl): TagRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindMerchantRepository(impl: MerchantRepositoryImpl): MerchantRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTransactionRepository(impl: TransactionRepositoryImpl): TransactionRepository
 }

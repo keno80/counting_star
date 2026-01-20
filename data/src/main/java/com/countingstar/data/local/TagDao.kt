@@ -37,4 +37,7 @@ interface TagDao {
 
     @Query("DELETE FROM transaction_tag WHERE transactionId = :transactionId")
     suspend fun deleteTransactionTagsByTransaction(transactionId: String)
+
+    @Query("SELECT tagId FROM transaction_tag WHERE transactionId = :transactionId")
+    suspend fun getTagIdsByTransaction(transactionId: String): List<String>
 }
