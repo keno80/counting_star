@@ -1,5 +1,6 @@
 package com.countingstar.data.local
 
+import androidx.paging.PagingSource
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -27,6 +28,7 @@ interface TransactionDao {
     @Query(
         "SELECT DISTINCT t.* FROM `transaction` t " +
             "LEFT JOIN transaction_tag tt ON t.id = tt.transactionId " +
+            "LEFT JOIN merchant m ON t.merchantId = m.id AND m.ledgerId = t.ledgerId " +
             "WHERE t.ledgerId = :ledgerId " +
             "AND (:startTime IS NULL OR t.occurredAt >= :startTime) " +
             "AND (:endTime IS NULL OR t.occurredAt <= :endTime) " +
@@ -37,7 +39,8 @@ interface TransactionDao {
             "AND (:categoryId IS NULL OR t.categoryId = :categoryId) " +
             "AND (:merchantId IS NULL OR t.merchantId = :merchantId) " +
             "AND (:tagId IS NULL OR tt.tagId = :tagId) " +
-            "AND (:keyword IS NULL OR t.note LIKE '%' || :keyword || '%') " +
+            "AND (:keyword IS NULL OR t.note LIKE '%' || :keyword || '%' " +
+            "OR m.name LIKE '%' || :keyword || '%' OR m.alias LIKE '%' || :keyword || '%') " +
             "ORDER BY t.occurredAt DESC",
     )
     fun observeTransactionsByFilters(
@@ -52,4 +55,35 @@ interface TransactionDao {
         merchantId: String? = null,
         keyword: String? = null,
     ): Flow<List<TransactionEntity>>
+
+    @Query(
+        "SELECT DISTINCT t.* FROM `transaction` t " +
+            "LEFT JOIN transaction_tag tt ON t.id = tt.transactionId " +
+            "LEFT JOIN merchant m ON t.merchantId = m.id AND m.ledgerId = t.ledgerId " +
+            "WHERE t.ledgerId = :ledgerId " +
+            "AND (:startTime IS NULL OR t.occurredAt >= :startTime) " +
+            "AND (:endTime IS NULL OR t.occurredAt <= :endTime) " +
+            "AND (:minAmount IS NULL OR t.amount >= :minAmount) " +
+            "AND (:maxAmount IS NULL OR t.amount <= :maxAmount) " +
+            "AND (:accountId IS NULL OR t.accountId = :accountId " +
+            "OR t.fromAccountId = :accountId OR t.toAccountId = :accountId) " +
+            "AND (:categoryId IS NULL OR t.categoryId = :categoryId) " +
+            "AND (:merchantId IS NULL OR t.merchantId = :merchantId) " +
+            "AND (:tagId IS NULL OR tt.tagId = :tagId) " +
+            "AND (:keyword IS NULL OR t.note LIKE '%' || :keyword || '%' " +
+            "OR m.name LIKE '%' || :keyword || '%' OR m.alias LIKE '%' || :keyword || '%') " +
+            "ORDER BY t.occurredAt DESC",
+    )
+    fun pagingTransactionsByFilters(
+        ledgerId: String,
+        startTime: Long? = null,
+        endTime: Long? = null,
+        minAmount: Long? = null,
+        maxAmount: Long? = null,
+        accountId: String? = null,
+        categoryId: String? = null,
+        tagId: String? = null,
+        merchantId: String? = null,
+        keyword: String? = null,
+    ): PagingSource<Int, TransactionEntity>
 }
