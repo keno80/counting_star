@@ -12,6 +12,7 @@ import com.countingstar.data.local.AppDatabase
 import com.countingstar.data.local.CategoryDao
 import com.countingstar.data.local.GreetingDao
 import com.countingstar.data.local.LedgerDao
+import com.countingstar.data.local.MerchantDao
 import com.countingstar.data.local.TagDao
 import com.countingstar.domain.GreetingRepository
 import dagger.Binds
@@ -51,6 +52,9 @@ object DataModule {
 
     @Provides
     fun provideTagDao(database: AppDatabase): TagDao = database.tagDao()
+
+    @Provides
+    fun provideMerchantDao(database: AppDatabase): MerchantDao = database.merchantDao()
 
     @Provides
     @Singleton
