@@ -62,14 +62,14 @@ val OutlineDark = Color(0xFF899294)
 
 // Category Colors
 object CategoryColors {
-    val Food = Color(0xFFEF4444)      // Red 500
-    val Shopping = Color(0xFFF97316)  // Orange 500
+    val Food = Color(0xFFEF4444) // Red 500
+    val Shopping = Color(0xFFF97316) // Orange 500
     val Transport = Color(0xFF3B82F6) // Blue 500
-    val Housing = Color(0xFF10B981)   // Emerald 500
+    val Housing = Color(0xFF10B981) // Emerald 500
     val Entertainment = Color(0xFF8B5CF6) // Violet 500
-    val Medical = Color(0xFFEC4899)   // Pink 500
+    val Medical = Color(0xFFEC4899) // Pink 500
     val Education = Color(0xFFEAB308) // Yellow 500
     val Investment = Color(0xFF6366F1) // Indigo 500
-    val Income = Color(0xFF22C55E)    // Green 500
-    val Other = Color(0xFF64748B)     // Slate 500
+    val Income = Color(0xFF22C55E) // Green 500
+    val Other = Color(0xFF64748B) // Slate 500
 }
