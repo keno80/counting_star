@@ -9,6 +9,7 @@ import androidx.room.Room
 import com.countingstar.data.GreetingRepositoryImpl
 import com.countingstar.data.local.AppDatabase
 import com.countingstar.data.local.GreetingDao
+import com.countingstar.data.local.LedgerDao
 import com.countingstar.domain.GreetingRepository
 import dagger.Binds
 import dagger.Module
@@ -35,6 +36,9 @@ object DataModule {
 
     @Provides
     fun provideGreetingDao(database: AppDatabase): GreetingDao = database.greetingDao()
+
+    @Provides
+    fun provideLedgerDao(database: AppDatabase): LedgerDao = database.ledgerDao()
 
     @Provides
     @Singleton
