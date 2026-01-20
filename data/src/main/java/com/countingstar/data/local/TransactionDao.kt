@@ -1,0 +1,55 @@
+package com.countingstar.data.local
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface TransactionDao {
+    @Query("SELECT * FROM `transaction` WHERE ledgerId = :ledgerId ORDER BY occurredAt DESC")
+    fun observeTransactionsByLedger(ledgerId: String): Flow<List<TransactionEntity>>
+
+    @Query("SELECT * FROM `transaction` WHERE id = :id LIMIT 1")
+    suspend fun getTransactionById(id: String): TransactionEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(transaction: TransactionEntity)
+
+    @Update
+    suspend fun update(transaction: TransactionEntity)
+
+    @Query("DELETE FROM `transaction` WHERE id = :id")
+    suspend fun deleteById(id: String)
+
+    @Query(
+        "SELECT DISTINCT t.* FROM `transaction` t " +
+            "LEFT JOIN transaction_tag tt ON t.id = tt.transactionId " +
+            "WHERE t.ledgerId = :ledgerId " +
+            "AND (:startTime IS NULL OR t.occurredAt >= :startTime) " +
+            "AND (:endTime IS NULL OR t.occurredAt <= :endTime) " +
+            "AND (:minAmount IS NULL OR t.amount >= :minAmount) " +
+            "AND (:maxAmount IS NULL OR t.amount <= :maxAmount) " +
+            "AND (:accountId IS NULL OR t.accountId = :accountId " +
+            "OR t.fromAccountId = :accountId OR t.toAccountId = :accountId) " +
+            "AND (:categoryId IS NULL OR t.categoryId = :categoryId) " +
+            "AND (:merchantId IS NULL OR t.merchantId = :merchantId) " +
+            "AND (:tagId IS NULL OR tt.tagId = :tagId) " +
+            "AND (:keyword IS NULL OR t.note LIKE '%' || :keyword || '%') " +
+            "ORDER BY t.occurredAt DESC",
+    )
+    fun observeTransactionsByFilters(
+        ledgerId: String,
+        startTime: Long? = null,
+        endTime: Long? = null,
+        minAmount: Long? = null,
+        maxAmount: Long? = null,
+        accountId: String? = null,
+        categoryId: String? = null,
+        tagId: String? = null,
+        merchantId: String? = null,
+        keyword: String? = null,
+    ): Flow<List<TransactionEntity>>
+}
