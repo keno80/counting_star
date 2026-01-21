@@ -188,6 +188,7 @@ data class AddTransactionUiState(
     val accounts: List<AccountItem> = emptyList(),
     val expenseCategories: List<CategoryItem> = emptyList(),
     val incomeCategories: List<CategoryItem> = emptyList(),
+    val templates: List<QuickTemplate> = emptyList(),
     val amountError: String? = null,
     val accountError: String? = null,
     val categoryError: String? = null,
@@ -288,6 +289,10 @@ sealed interface AddTransactionUiEvent {
         val accountId: String?,
     ) : AddTransactionUiEvent
 
+    data class TemplateSelected(
+        val template: QuickTemplate,
+    ) : AddTransactionUiEvent
+
     object CopyPreviousClicked : AddTransactionUiEvent
 
     object SaveClicked : AddTransactionUiEvent
@@ -325,6 +330,50 @@ private fun recordTypeFromTransaction(type: TransactionType): RecordType =
         TransactionType.EXPENSE -> RecordType.EXPENSE
         TransactionType.TRANSFER -> RecordType.TRANSFER
     }
+
+data class QuickTemplate(
+    val id: String,
+    val type: RecordType,
+    val amountCents: Long,
+    val accountId: String? = null,
+    val categoryId: String? = null,
+    val fromAccountId: String? = null,
+    val toAccountId: String? = null,
+)
+
+private fun Transaction.toTemplate(): QuickTemplate =
+    QuickTemplate(
+        id = id,
+        type = recordTypeFromTransaction(type),
+        amountCents = amount,
+        accountId = accountId,
+        categoryId = categoryId,
+        fromAccountId = fromAccountId,
+        toAccountId = toAccountId,
+    )
+
+private fun templateLabel(
+    template: QuickTemplate,
+    accounts: List<AccountItem>,
+    expenseCategories: List<CategoryItem>,
+    incomeCategories: List<CategoryItem>,
+): String {
+    val amount = centsToAmountString(template.amountCents)
+    val accountName = { id: String? ->
+        accounts.firstOrNull { it.id == id }?.name ?: "未选择"
+    }
+    val categoryName = { id: String?, categories: List<CategoryItem> ->
+        categories.firstOrNull { it.id == id }?.name ?: "未选择"
+    }
+    return when (template.type) {
+        RecordType.TRANSFER ->
+            "转账 · ${accountName(template.fromAccountId)} → ${accountName(template.toAccountId)} · $amount"
+        RecordType.EXPENSE ->
+            "支出 · ${categoryName(template.categoryId, expenseCategories)} · ${accountName(template.accountId)} · $amount"
+        RecordType.INCOME ->
+            "收入 · ${categoryName(template.categoryId, incomeCategories)} · ${accountName(template.accountId)} · $amount"
+    }
+}
 
 @HiltViewModel
 class AddTransactionViewModel
@@ -417,6 +466,13 @@ class AddTransactionViewModel
                         .observeTransactionsByLedger(ledgerId)
                         .collectLatest { transactions ->
                             latestTransaction = transactions.firstOrNull()
+                            val templates =
+                                transactions
+                                    .map { it.toTemplate() }
+                                    .distinctBy {
+                                        "${it.type}-${it.amountCents}-${it.accountId}-${it.categoryId}-${it.fromAccountId}-${it.toAccountId}"
+                                    }.take(5)
+                            updateState { current -> current.copy(templates = templates) }
                         }
                 }
             }
@@ -465,6 +521,30 @@ class AddTransactionViewModel
                 }
                 is AddTransactionUiEvent.ToAccountSelected -> {
                     updateState { current -> current.copy(selectedToAccountId = event.accountId) }
+                }
+                is AddTransactionUiEvent.TemplateSelected -> {
+                    updateState { current ->
+                        val template = event.template
+                        if (template.type == RecordType.TRANSFER) {
+                            current.copy(
+                                selectedType = template.type,
+                                amount = centsToAmountString(template.amountCents),
+                                selectedAccountId = null,
+                                selectedCategoryId = null,
+                                selectedFromAccountId = template.fromAccountId,
+                                selectedToAccountId = template.toAccountId,
+                            )
+                        } else {
+                            current.copy(
+                                selectedType = template.type,
+                                amount = centsToAmountString(template.amountCents),
+                                selectedAccountId = template.accountId,
+                                selectedCategoryId = template.categoryId,
+                                selectedFromAccountId = null,
+                                selectedToAccountId = null,
+                            )
+                        }
+                    }
                 }
                 AddTransactionUiEvent.CopyPreviousClicked -> {
                     viewModelScope.launch {
@@ -678,6 +758,32 @@ fun AddTransactionScreen(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(text = "复制上一笔")
+        }
+        if (uiState.templates.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "常用模板",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                uiState.templates.forEach { template ->
+                    OutlinedButton(
+                        onClick = {
+                            viewModel.onEvent(AddTransactionUiEvent.TemplateSelected(template))
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            text =
+                                templateLabel(
+                                    template,
+                                    uiState.accounts,
+                                    uiState.expenseCategories,
+                                    uiState.incomeCategories,
+                                ),
+                        )
+                    }
+                }
+            }
         }
         AmountInput(
             amount = uiState.amount,
