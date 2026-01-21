@@ -1,7 +1,8 @@
 package com.countingstar.core.ui.component
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -36,8 +37,7 @@ fun CategorySelector(
 
     val selectedCategory = categories.find { it.id == selectedCategoryId }
 
-    // Read-only text field that acts as a dropdown trigger
-    Row(modifier = modifier) {
+    Box(modifier = modifier) {
         OutlinedTextField(
             value = selectedCategory?.name ?: "",
             onValueChange = {},
@@ -46,20 +46,15 @@ fun CategorySelector(
             trailingIcon = {
                 Icon(Icons.Default.ArrowDropDown, "Select category")
             },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Box(
             modifier =
                 Modifier
-                    .fillMaxWidth()
+                    .fillMaxSize()
                     .clickable { expanded = true },
-            enabled = false, // We handle click on the Box/Row usually, but here clickable on Modifier
         )
-
-        // Overlay for click
-        // Actually OutlinedTextField disabled might change colors.
-        // Better pattern: Box with OutlinedTextField readOnly = true (enabled=true) and a transparent clickable surface on top?
-        // Or simply interactionSource.
     }
-
-    // For MVP, simplified DropdownMenu
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = { expanded = false },

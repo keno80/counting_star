@@ -35,6 +35,8 @@ import com.countingstar.core.ui.LocalSnackbarHostState
 import com.countingstar.core.ui.component.AccountItem
 import com.countingstar.core.ui.component.AccountSelector
 import com.countingstar.core.ui.component.AmountInput
+import com.countingstar.core.ui.component.CategoryItem
+import com.countingstar.core.ui.component.CategorySelector
 import com.countingstar.feature.home.HomeDestination
 import com.countingstar.feature.home.homeRoute
 import com.countingstar.navigation.TopLevelDestination
@@ -141,12 +143,33 @@ fun AddTransactionScreen() {
     var selectedType by remember { mutableStateOf(RecordType.EXPENSE) }
     var amount by remember { mutableStateOf("") }
     var selectedAccountId by remember { mutableStateOf<String?>(null) }
+    var selectedCategoryId by remember { mutableStateOf<String?>(null) }
     val accounts =
         remember {
             listOf(
                 AccountItem(id = "cash", name = "现金", balance = 0L),
                 AccountItem(id = "card", name = "银行卡", balance = 120_00L),
             )
+        }
+    val expenseCategories =
+        remember {
+            listOf(
+                CategoryItem(id = "food", name = "餐饮"),
+                CategoryItem(id = "transport", name = "交通"),
+            )
+        }
+    val incomeCategories =
+        remember {
+            listOf(
+                CategoryItem(id = "salary", name = "工资"),
+                CategoryItem(id = "bonus", name = "奖金"),
+            )
+        }
+    val categories =
+        if (selectedType == RecordType.INCOME) {
+            incomeCategories
+        } else {
+            expenseCategories
         }
     val amountValue = amount.toBigDecimalOrNull()
     val amountError =
@@ -161,6 +184,12 @@ fun AddTransactionScreen() {
             null
         } else {
             "账户必填"
+        }
+    val categoryError =
+        if (selectedType == RecordType.TRANSFER || !selectedCategoryId.isNullOrBlank()) {
+            null
+        } else {
+            "分类必填"
         }
 
     Column(
@@ -181,7 +210,10 @@ fun AddTransactionScreen() {
             RecordType.entries.forEach { type ->
                 FilterChip(
                     selected = selectedType == type,
-                    onClick = { selectedType = type },
+                    onClick = {
+                        selectedType = type
+                        selectedCategoryId = null
+                    },
                     label = { Text(type.label) },
                 )
             }
@@ -194,19 +226,36 @@ fun AddTransactionScreen() {
             errorMessage = amountError,
         )
         if (selectedType != RecordType.TRANSFER) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                AccountSelector(
-                    accounts = accounts,
-                    selectedAccountId = selectedAccountId,
-                    onAccountSelected = { selectedAccountId = it },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                if (accountError != null) {
-                    Text(
-                        text = accountError,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    AccountSelector(
+                        accounts = accounts,
+                        selectedAccountId = selectedAccountId,
+                        onAccountSelected = { selectedAccountId = it },
+                        modifier = Modifier.fillMaxWidth(),
                     )
+                    if (accountError != null) {
+                        Text(
+                            text = accountError,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    CategorySelector(
+                        categories = categories,
+                        selectedCategoryId = selectedCategoryId,
+                        onCategorySelected = { selectedCategoryId = it },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    if (categoryError != null) {
+                        Text(
+                            text = categoryError,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
                 }
             }
         }
