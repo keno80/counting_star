@@ -1,0 +1,77 @@
+package com.countingstar.core.ui.component
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+
+data class CategoryItem(
+    val id: String,
+    val name: String,
+    val parentId: String? = null,
+)
+
+@Suppress("ktlint:standard:function-naming")
+@Composable
+fun CategorySelector(
+    categories: List<CategoryItem>,
+    selectedCategoryId: String?,
+    onCategorySelected: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    label: String = "分类",
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    val selectedCategory = categories.find { it.id == selectedCategoryId }
+
+    // Read-only text field that acts as a dropdown trigger
+    Row(modifier = modifier) {
+        OutlinedTextField(
+            value = selectedCategory?.name ?: "",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = {
+                Icon(Icons.Default.ArrowDropDown, "Select category")
+            },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = true },
+            enabled = false, // We handle click on the Box/Row usually, but here clickable on Modifier
+        )
+
+        // Overlay for click
+        // Actually OutlinedTextField disabled might change colors.
+        // Better pattern: Box with OutlinedTextField readOnly = true (enabled=true) and a transparent clickable surface on top?
+        // Or simply interactionSource.
+    }
+
+    // For MVP, simplified DropdownMenu
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = { expanded = false },
+    ) {
+        categories.forEach { category ->
+            DropdownMenuItem(
+                text = { Text(category.name) },
+                onClick = {
+                    onCategorySelected(category.id)
+                    expanded = false
+                },
+            )
+        }
+    }
+}
