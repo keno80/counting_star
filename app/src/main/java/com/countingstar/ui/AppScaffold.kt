@@ -261,6 +261,8 @@ sealed interface AddTransactionUiEvent {
     data class ToAccountSelected(
         val accountId: String?,
     ) : AddTransactionUiEvent
+
+    object SaveClicked : AddTransactionUiEvent
 }
 
 @HiltViewModel
@@ -334,6 +336,9 @@ class AddTransactionViewModel
                 }
                 is AddTransactionUiEvent.ToAccountSelected -> {
                     updateState { current -> current.copy(selectedToAccountId = event.accountId) }
+                }
+                AddTransactionUiEvent.SaveClicked -> {
+                    updateState { current -> current }
                 }
             }
         }
@@ -495,7 +500,9 @@ fun AddTransactionScreen(viewModel: AddTransactionViewModel = hiltViewModel()) {
             }
         }
         Button(
-            onClick = {},
+            onClick = {
+                viewModel.onEvent(AddTransactionUiEvent.SaveClicked)
+            },
             enabled = uiState.isSaveEnabled,
             modifier = Modifier.fillMaxWidth(),
         ) {
