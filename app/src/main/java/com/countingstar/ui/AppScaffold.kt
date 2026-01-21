@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -43,6 +44,12 @@ import com.countingstar.core.ui.component.AmountInput
 import com.countingstar.core.ui.component.CategoryItem
 import com.countingstar.core.ui.component.CategorySelector
 import com.countingstar.core.ui.component.DateTimePicker
+import com.countingstar.domain.AddIncomeExpenseParams
+import com.countingstar.domain.AddIncomeExpenseUseCase
+import com.countingstar.domain.AddTransferParams
+import com.countingstar.domain.AddTransferUseCase
+import com.countingstar.domain.PreferenceRepository
+import com.countingstar.domain.TransactionType
 import com.countingstar.feature.home.HomeDestination
 import com.countingstar.feature.home.homeRoute
 import com.countingstar.navigation.TopLevelDestination
@@ -51,7 +58,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import java.math.BigDecimal
+import java.math.RoundingMode
 import javax.inject.Inject
 
 @Suppress("ktlint:standard:function-naming")
@@ -265,10 +274,22 @@ sealed interface AddTransactionUiEvent {
     object SaveClicked : AddTransactionUiEvent
 }
 
+private fun amountToCents(amount: String): Long? {
+    val value = amount.toBigDecimalOrNull() ?: return null
+    return value
+        .movePointRight(2)
+        .setScale(0, RoundingMode.HALF_UP)
+        .toLong()
+}
+
 @HiltViewModel
 class AddTransactionViewModel
     @Inject
-    constructor() : ViewModel() {
+    constructor(
+        private val addIncomeExpenseUseCase: AddIncomeExpenseUseCase,
+        private val addTransferUseCase: AddTransferUseCase,
+        private val preferenceRepository: PreferenceRepository,
+    ) : ViewModel() {
         private val _uiState =
             MutableStateFlow(
                 buildAddTransactionUiState(
@@ -338,7 +359,63 @@ class AddTransactionViewModel
                     updateState { current -> current.copy(selectedToAccountId = event.accountId) }
                 }
                 AddTransactionUiEvent.SaveClicked -> {
-                    updateState { current -> current }
+                    viewModelScope.launch {
+                        val current = _uiState.value
+                        if (!current.isSaveEnabled) {
+                            return@launch
+                        }
+                        val ledgerId = preferenceRepository.getDefaultLedgerId() ?: return@launch
+                        val amountCents = amountToCents(current.amount) ?: return@launch
+                        when (current.selectedType) {
+                            RecordType.INCOME -> {
+                                val accountId = current.selectedAccountId ?: return@launch
+                                val categoryId = current.selectedCategoryId ?: return@launch
+                                addIncomeExpenseUseCase(
+                                    AddIncomeExpenseParams(
+                                        ledgerId = ledgerId,
+                                        type = TransactionType.INCOME,
+                                        amount = amountCents,
+                                        currency = "CNY",
+                                        occurredAt = current.selectedTimestamp,
+                                        note = current.note,
+                                        accountId = accountId,
+                                        categoryId = categoryId,
+                                    ),
+                                )
+                            }
+                            RecordType.EXPENSE -> {
+                                val accountId = current.selectedAccountId ?: return@launch
+                                val categoryId = current.selectedCategoryId ?: return@launch
+                                addIncomeExpenseUseCase(
+                                    AddIncomeExpenseParams(
+                                        ledgerId = ledgerId,
+                                        type = TransactionType.EXPENSE,
+                                        amount = amountCents,
+                                        currency = "CNY",
+                                        occurredAt = current.selectedTimestamp,
+                                        note = current.note,
+                                        accountId = accountId,
+                                        categoryId = categoryId,
+                                    ),
+                                )
+                            }
+                            RecordType.TRANSFER -> {
+                                val fromAccountId = current.selectedFromAccountId ?: return@launch
+                                val toAccountId = current.selectedToAccountId ?: return@launch
+                                addTransferUseCase(
+                                    AddTransferParams(
+                                        ledgerId = ledgerId,
+                                        amount = amountCents,
+                                        currency = "CNY",
+                                        occurredAt = current.selectedTimestamp,
+                                        note = current.note,
+                                        fromAccountId = fromAccountId,
+                                        toAccountId = toAccountId,
+                                    ),
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

@@ -114,6 +114,7 @@ android {
 dependencies {
     implementation(project(":core"))
     implementation(project(":data"))
+    implementation(project(":domain"))
     implementation(project(":feature-home"))
 
     val composeBom = platform("androidx.compose:compose-bom:2026.01.00")
