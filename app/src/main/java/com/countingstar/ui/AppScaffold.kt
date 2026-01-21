@@ -32,9 +32,11 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.countingstar.core.ui.EmptyState
 import com.countingstar.core.ui.LocalSnackbarHostState
+import com.countingstar.core.ui.component.AmountInput
 import com.countingstar.feature.home.HomeDestination
 import com.countingstar.feature.home.homeRoute
 import com.countingstar.navigation.TopLevelDestination
+import java.math.BigDecimal
 
 @Suppress("ktlint:standard:function-naming")
 @Composable
@@ -135,6 +137,15 @@ private enum class RecordType(
 @Composable
 fun AddTransactionScreen() {
     var selectedType by remember { mutableStateOf(RecordType.EXPENSE) }
+    var amount by remember { mutableStateOf("") }
+    val amountValue = amount.toBigDecimalOrNull()
+    val amountError =
+        when {
+            amount.isBlank() -> "金额必填"
+            amountValue == null -> "金额格式错误"
+            amountValue <= BigDecimal.ZERO -> "金额需大于0"
+            else -> null
+        }
 
     Column(
         modifier =
@@ -159,5 +170,12 @@ fun AddTransactionScreen() {
                 )
             }
         }
+        AmountInput(
+            amount = amount,
+            onAmountChange = { amount = it },
+            modifier = Modifier.fillMaxWidth(),
+            isError = amountError != null,
+            errorMessage = amountError,
+        )
     }
 }
