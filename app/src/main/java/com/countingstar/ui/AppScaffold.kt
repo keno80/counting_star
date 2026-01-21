@@ -1,7 +1,14 @@
 package com.countingstar.ui
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -11,8 +18,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -85,12 +95,21 @@ fun AppNavHost(
     navController: NavHostController,
     modifier: Modifier = Modifier,
 ) {
+    val addTransactionRoute = "add-transaction"
     NavHost(
         navController = navController,
         startDestination = HomeDestination.ROUTE,
         modifier = modifier,
     ) {
-        homeRoute()
+        homeRoute(
+            onAddTransaction = {
+                navController.navigate(addTransactionRoute)
+            },
+        )
+
+        composable(addTransactionRoute) {
+            AddTransactionScreen()
+        }
 
         composable(TopLevelDestination.TRANSACTIONS.route) {
             EmptyState(message = "流水列表功能开发中")
@@ -100,6 +119,45 @@ fun AppNavHost(
         }
         composable(TopLevelDestination.SETTINGS.route) {
             EmptyState(message = "设置功能开发中")
+        }
+    }
+}
+
+private enum class RecordType(
+    val label: String,
+) {
+    EXPENSE("支出"),
+    INCOME("收入"),
+    TRANSFER("转账"),
+}
+
+@Suppress("ktlint:standard:function-naming")
+@Composable
+fun AddTransactionScreen() {
+    var selectedType by remember { mutableStateOf(RecordType.EXPENSE) }
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text(
+            text = "类型",
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            RecordType.entries.forEach { type ->
+                FilterChip(
+                    selected = selectedType == type,
+                    onClick = { selectedType = type },
+                    label = { Text(type.label) },
+                )
+            }
         }
     }
 }

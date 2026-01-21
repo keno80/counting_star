@@ -9,15 +9,21 @@ object HomeDestination {
     const val ROUTE = "home"
 }
 
-fun NavGraphBuilder.homeRoute() {
+fun NavGraphBuilder.homeRoute(onAddTransaction: () -> Unit) {
     composable(route = HomeDestination.ROUTE) {
-        homeRouteContent()
+        homeRouteContent(
+            onAddTransaction = onAddTransaction,
+        )
     }
 }
 
 @Composable
-fun homeRouteContent(viewModel: HomeViewModel = hiltViewModel()) {
+fun homeRouteContent(
+    onAddTransaction: () -> Unit,
+    viewModel: HomeViewModel = hiltViewModel(),
+) {
     homeScreen(
         greeting = viewModel.greeting,
+        onAddTransaction = onAddTransaction,
     )
 }
