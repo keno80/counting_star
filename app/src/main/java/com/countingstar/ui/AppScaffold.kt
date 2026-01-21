@@ -144,6 +144,7 @@ fun AddTransactionScreen() {
     var amount by remember { mutableStateOf("") }
     var selectedAccountId by remember { mutableStateOf<String?>(null) }
     var selectedCategoryId by remember { mutableStateOf<String?>(null) }
+    var selectedFromAccountId by remember { mutableStateOf<String?>(null) }
     val accounts =
         remember {
             listOf(
@@ -185,6 +186,12 @@ fun AddTransactionScreen() {
         } else {
             "账户必填"
         }
+    val fromAccountError =
+        if (selectedType != RecordType.TRANSFER || !selectedFromAccountId.isNullOrBlank()) {
+            null
+        } else {
+            "转出账户必填"
+        }
     val categoryError =
         if (selectedType == RecordType.TRANSFER || !selectedCategoryId.isNullOrBlank()) {
             null
@@ -213,6 +220,11 @@ fun AddTransactionScreen() {
                     onClick = {
                         selectedType = type
                         selectedCategoryId = null
+                        if (type == RecordType.TRANSFER) {
+                            selectedAccountId = null
+                        } else {
+                            selectedFromAccountId = null
+                        }
                     },
                     label = { Text(type.label) },
                 )
@@ -256,6 +268,23 @@ fun AddTransactionScreen() {
                             color = MaterialTheme.colorScheme.error,
                         )
                     }
+                }
+            }
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                AccountSelector(
+                    accounts = accounts,
+                    selectedAccountId = selectedFromAccountId,
+                    onAccountSelected = { selectedFromAccountId = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = "转出账户",
+                )
+                if (fromAccountError != null) {
+                    Text(
+                        text = fromAccountError,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
             }
         }
