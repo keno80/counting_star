@@ -21,12 +21,13 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -45,7 +46,13 @@ import com.countingstar.core.ui.component.DateTimePicker
 import com.countingstar.feature.home.HomeDestination
 import com.countingstar.feature.home.homeRoute
 import com.countingstar.navigation.TopLevelDestination
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import java.math.BigDecimal
+import javax.inject.Inject
 
 @Suppress("ktlint:standard:function-naming")
 @Composable
@@ -134,7 +141,7 @@ fun AppNavHost(
     }
 }
 
-private enum class RecordType(
+enum class RecordType(
     val label: String,
 ) {
     EXPENSE("支出"),
@@ -142,88 +149,211 @@ private enum class RecordType(
     TRANSFER("转账"),
 }
 
-@Suppress("ktlint:standard:function-naming")
-@Composable
-fun AddTransactionScreen() {
-    var selectedType by remember { mutableStateOf(RecordType.EXPENSE) }
-    var amount by remember { mutableStateOf("") }
-    var note by remember { mutableStateOf("") }
-    var merchant by remember { mutableStateOf("") }
-    var selectedTimestamp by remember { mutableStateOf(System.currentTimeMillis()) }
-    var selectedAccountId by remember { mutableStateOf<String?>(null) }
-    var selectedCategoryId by remember { mutableStateOf<String?>(null) }
-    var selectedFromAccountId by remember { mutableStateOf<String?>(null) }
-    var selectedToAccountId by remember { mutableStateOf<String?>(null) }
-    val accounts =
-        remember {
-            listOf(
-                AccountItem(id = "cash", name = "现金", balance = 0L),
-                AccountItem(id = "card", name = "银行卡", balance = 120_00L),
-            )
-        }
-    val expenseCategories =
-        remember {
-            listOf(
-                CategoryItem(id = "food", name = "餐饮"),
-                CategoryItem(id = "transport", name = "交通"),
-            )
-        }
-    val incomeCategories =
-        remember {
-            listOf(
-                CategoryItem(id = "salary", name = "工资"),
-                CategoryItem(id = "bonus", name = "奖金"),
-            )
-        }
-    val categories =
-        if (selectedType == RecordType.INCOME) {
-            incomeCategories
-        } else {
-            expenseCategories
-        }
-    val amountValue = amount.toBigDecimalOrNull()
+data class AddTransactionUiState(
+    val selectedType: RecordType = RecordType.EXPENSE,
+    val amount: String = "",
+    val note: String = "",
+    val merchant: String = "",
+    val selectedTimestamp: Long = System.currentTimeMillis(),
+    val selectedAccountId: String? = null,
+    val selectedCategoryId: String? = null,
+    val selectedFromAccountId: String? = null,
+    val selectedToAccountId: String? = null,
+    val accounts: List<AccountItem> = emptyList(),
+    val expenseCategories: List<CategoryItem> = emptyList(),
+    val incomeCategories: List<CategoryItem> = emptyList(),
+    val amountError: String? = null,
+    val accountError: String? = null,
+    val categoryError: String? = null,
+    val fromAccountError: String? = null,
+    val toAccountError: String? = null,
+    val isSaveEnabled: Boolean = false,
+)
+
+private fun buildAddTransactionUiState(state: AddTransactionUiState): AddTransactionUiState {
+    val amountValue = state.amount.toBigDecimalOrNull()
     val amountError =
         when {
-            amount.isBlank() -> "金额必填"
+            state.amount.isBlank() -> "金额必填"
             amountValue == null -> "金额格式错误"
             amountValue <= BigDecimal.ZERO -> "金额需大于0"
             else -> null
         }
     val accountError =
-        if (selectedType == RecordType.TRANSFER || !selectedAccountId.isNullOrBlank()) {
+        if (state.selectedType == RecordType.TRANSFER || !state.selectedAccountId.isNullOrBlank()) {
             null
         } else {
             "账户必填"
         }
     val fromAccountError =
-        if (selectedType != RecordType.TRANSFER || !selectedFromAccountId.isNullOrBlank()) {
+        if (state.selectedType != RecordType.TRANSFER || !state.selectedFromAccountId.isNullOrBlank()) {
             null
         } else {
             "转出账户必填"
         }
     val toAccountError =
-        if (selectedType != RecordType.TRANSFER) {
+        if (state.selectedType != RecordType.TRANSFER) {
             null
-        } else if (selectedToAccountId.isNullOrBlank()) {
+        } else if (state.selectedToAccountId.isNullOrBlank()) {
             "转入账户必填"
-        } else if (selectedToAccountId == selectedFromAccountId) {
+        } else if (state.selectedToAccountId == state.selectedFromAccountId) {
             "转入账户需不同"
         } else {
             null
         }
     val categoryError =
-        if (selectedType == RecordType.TRANSFER || !selectedCategoryId.isNullOrBlank()) {
+        if (state.selectedType == RecordType.TRANSFER || !state.selectedCategoryId.isNullOrBlank()) {
             null
         } else {
             "分类必填"
         }
     val isSaveEnabled =
-        when (selectedType) {
+        when (state.selectedType) {
             RecordType.TRANSFER ->
                 amountError == null && fromAccountError == null && toAccountError == null
             RecordType.EXPENSE,
             RecordType.INCOME,
             -> amountError == null && accountError == null && categoryError == null
+        }
+    return state.copy(
+        amountError = amountError,
+        accountError = accountError,
+        categoryError = categoryError,
+        fromAccountError = fromAccountError,
+        toAccountError = toAccountError,
+        isSaveEnabled = isSaveEnabled,
+    )
+}
+
+sealed interface AddTransactionUiEvent {
+    data class TypeSelected(
+        val type: RecordType,
+    ) : AddTransactionUiEvent
+
+    data class AmountChanged(
+        val amount: String,
+    ) : AddTransactionUiEvent
+
+    data class DateTimeChanged(
+        val timestamp: Long,
+    ) : AddTransactionUiEvent
+
+    data class NoteChanged(
+        val note: String,
+    ) : AddTransactionUiEvent
+
+    data class MerchantChanged(
+        val merchant: String,
+    ) : AddTransactionUiEvent
+
+    data class AccountSelected(
+        val accountId: String?,
+    ) : AddTransactionUiEvent
+
+    data class CategorySelected(
+        val categoryId: String?,
+    ) : AddTransactionUiEvent
+
+    data class FromAccountSelected(
+        val accountId: String?,
+    ) : AddTransactionUiEvent
+
+    data class ToAccountSelected(
+        val accountId: String?,
+    ) : AddTransactionUiEvent
+}
+
+@HiltViewModel
+class AddTransactionViewModel
+    @Inject
+    constructor() : ViewModel() {
+        private val _uiState =
+            MutableStateFlow(
+                buildAddTransactionUiState(
+                    AddTransactionUiState(
+                        accounts =
+                            listOf(
+                                AccountItem(id = "cash", name = "现金", balance = 0L),
+                                AccountItem(id = "card", name = "银行卡", balance = 120_00L),
+                            ),
+                        expenseCategories =
+                            listOf(
+                                CategoryItem(id = "food", name = "餐饮"),
+                                CategoryItem(id = "transport", name = "交通"),
+                            ),
+                        incomeCategories =
+                            listOf(
+                                CategoryItem(id = "salary", name = "工资"),
+                                CategoryItem(id = "bonus", name = "奖金"),
+                            ),
+                    ),
+                ),
+            )
+        val uiState: StateFlow<AddTransactionUiState> = _uiState.asStateFlow()
+
+        fun onEvent(event: AddTransactionUiEvent) {
+            when (event) {
+                is AddTransactionUiEvent.TypeSelected -> {
+                    updateState { current ->
+                        if (event.type == RecordType.TRANSFER) {
+                            current.copy(
+                                selectedType = event.type,
+                                selectedCategoryId = null,
+                                selectedAccountId = null,
+                            )
+                        } else {
+                            current.copy(
+                                selectedType = event.type,
+                                selectedCategoryId = null,
+                                selectedFromAccountId = null,
+                                selectedToAccountId = null,
+                            )
+                        }
+                    }
+                }
+                is AddTransactionUiEvent.AmountChanged -> {
+                    updateState { current -> current.copy(amount = event.amount) }
+                }
+                is AddTransactionUiEvent.DateTimeChanged -> {
+                    updateState { current -> current.copy(selectedTimestamp = event.timestamp) }
+                }
+                is AddTransactionUiEvent.NoteChanged -> {
+                    updateState { current -> current.copy(note = event.note) }
+                }
+                is AddTransactionUiEvent.MerchantChanged -> {
+                    updateState { current -> current.copy(merchant = event.merchant) }
+                }
+                is AddTransactionUiEvent.AccountSelected -> {
+                    updateState { current -> current.copy(selectedAccountId = event.accountId) }
+                }
+                is AddTransactionUiEvent.CategorySelected -> {
+                    updateState { current -> current.copy(selectedCategoryId = event.categoryId) }
+                }
+                is AddTransactionUiEvent.FromAccountSelected -> {
+                    updateState { current -> current.copy(selectedFromAccountId = event.accountId) }
+                }
+                is AddTransactionUiEvent.ToAccountSelected -> {
+                    updateState { current -> current.copy(selectedToAccountId = event.accountId) }
+                }
+            }
+        }
+
+        private fun updateState(reducer: (AddTransactionUiState) -> AddTransactionUiState) {
+            _uiState.update { current ->
+                buildAddTransactionUiState(reducer(current))
+            }
+        }
+    }
+
+@Suppress("ktlint:standard:function-naming")
+@Composable
+fun AddTransactionScreen(viewModel: AddTransactionViewModel = hiltViewModel()) {
+    val uiState by viewModel.uiState.collectAsState()
+    val categories =
+        if (uiState.selectedType == RecordType.INCOME) {
+            uiState.incomeCategories
+        } else {
+            uiState.expenseCategories
         }
 
     Column(
@@ -244,27 +374,20 @@ fun AddTransactionScreen() {
         ) {
             RecordType.entries.forEach { type ->
                 FilterChip(
-                    selected = selectedType == type,
+                    selected = uiState.selectedType == type,
                     onClick = {
-                        selectedType = type
-                        selectedCategoryId = null
-                        if (type == RecordType.TRANSFER) {
-                            selectedAccountId = null
-                        } else {
-                            selectedFromAccountId = null
-                            selectedToAccountId = null
-                        }
+                        viewModel.onEvent(AddTransactionUiEvent.TypeSelected(type))
                     },
                     label = { Text(type.label) },
                 )
             }
         }
         AmountInput(
-            amount = amount,
-            onAmountChange = { amount = it },
+            amount = uiState.amount,
+            onAmountChange = { viewModel.onEvent(AddTransactionUiEvent.AmountChanged(it)) },
             modifier = Modifier.fillMaxWidth(),
-            isError = amountError != null,
-            errorMessage = amountError,
+            isError = uiState.amountError != null,
+            errorMessage = uiState.amountError,
         )
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
@@ -272,33 +395,36 @@ fun AddTransactionScreen() {
                 style = MaterialTheme.typography.bodyMedium,
             )
             DateTimePicker(
-                timestamp = selectedTimestamp,
-                onDateTimeSelected = { selectedTimestamp = it },
+                timestamp = uiState.selectedTimestamp,
+                onDateTimeSelected = { viewModel.onEvent(AddTransactionUiEvent.DateTimeChanged(it)) },
             )
         }
         OutlinedTextField(
-            value = note,
-            onValueChange = { note = it },
+            value = uiState.note,
+            onValueChange = { viewModel.onEvent(AddTransactionUiEvent.NoteChanged(it)) },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("备注") },
             maxLines = 3,
         )
         OutlinedTextField(
-            value = merchant,
-            onValueChange = { merchant = it },
+            value = uiState.merchant,
+            onValueChange = { viewModel.onEvent(AddTransactionUiEvent.MerchantChanged(it)) },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("商家") },
             singleLine = true,
         )
-        if (selectedType != RecordType.TRANSFER) {
+        if (uiState.selectedType != RecordType.TRANSFER) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     AccountSelector(
-                        accounts = accounts,
-                        selectedAccountId = selectedAccountId,
-                        onAccountSelected = { selectedAccountId = it },
+                        accounts = uiState.accounts,
+                        selectedAccountId = uiState.selectedAccountId,
+                        onAccountSelected = {
+                            viewModel.onEvent(AddTransactionUiEvent.AccountSelected(it))
+                        },
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    val accountError = uiState.accountError
                     if (accountError != null) {
                         Text(
                             text = accountError,
@@ -310,10 +436,13 @@ fun AddTransactionScreen() {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     CategorySelector(
                         categories = categories,
-                        selectedCategoryId = selectedCategoryId,
-                        onCategorySelected = { selectedCategoryId = it },
+                        selectedCategoryId = uiState.selectedCategoryId,
+                        onCategorySelected = {
+                            viewModel.onEvent(AddTransactionUiEvent.CategorySelected(it))
+                        },
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    val categoryError = uiState.categoryError
                     if (categoryError != null) {
                         Text(
                             text = categoryError,
@@ -327,12 +456,15 @@ fun AddTransactionScreen() {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     AccountSelector(
-                        accounts = accounts,
-                        selectedAccountId = selectedFromAccountId,
-                        onAccountSelected = { selectedFromAccountId = it },
+                        accounts = uiState.accounts,
+                        selectedAccountId = uiState.selectedFromAccountId,
+                        onAccountSelected = {
+                            viewModel.onEvent(AddTransactionUiEvent.FromAccountSelected(it))
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         label = "转出账户",
                     )
+                    val fromAccountError = uiState.fromAccountError
                     if (fromAccountError != null) {
                         Text(
                             text = fromAccountError,
@@ -343,12 +475,15 @@ fun AddTransactionScreen() {
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     AccountSelector(
-                        accounts = accounts,
-                        selectedAccountId = selectedToAccountId,
-                        onAccountSelected = { selectedToAccountId = it },
+                        accounts = uiState.accounts,
+                        selectedAccountId = uiState.selectedToAccountId,
+                        onAccountSelected = {
+                            viewModel.onEvent(AddTransactionUiEvent.ToAccountSelected(it))
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         label = "转入账户",
                     )
+                    val toAccountError = uiState.toAccountError
                     if (toAccountError != null) {
                         Text(
                             text = toAccountError,
@@ -361,7 +496,7 @@ fun AddTransactionScreen() {
         }
         Button(
             onClick = {},
-            enabled = isSaveEnabled,
+            enabled = uiState.isSaveEnabled,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(text = "保存")
