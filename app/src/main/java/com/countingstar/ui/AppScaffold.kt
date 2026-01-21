@@ -145,6 +145,7 @@ fun AddTransactionScreen() {
     var selectedAccountId by remember { mutableStateOf<String?>(null) }
     var selectedCategoryId by remember { mutableStateOf<String?>(null) }
     var selectedFromAccountId by remember { mutableStateOf<String?>(null) }
+    var selectedToAccountId by remember { mutableStateOf<String?>(null) }
     val accounts =
         remember {
             listOf(
@@ -192,6 +193,16 @@ fun AddTransactionScreen() {
         } else {
             "转出账户必填"
         }
+    val toAccountError =
+        if (selectedType != RecordType.TRANSFER) {
+            null
+        } else if (selectedToAccountId.isNullOrBlank()) {
+            "转入账户必填"
+        } else if (selectedToAccountId == selectedFromAccountId) {
+            "转入账户需不同"
+        } else {
+            null
+        }
     val categoryError =
         if (selectedType == RecordType.TRANSFER || !selectedCategoryId.isNullOrBlank()) {
             null
@@ -224,6 +235,7 @@ fun AddTransactionScreen() {
                             selectedAccountId = null
                         } else {
                             selectedFromAccountId = null
+                            selectedToAccountId = null
                         }
                     },
                     label = { Text(type.label) },
@@ -271,20 +283,38 @@ fun AddTransactionScreen() {
                 }
             }
         } else {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                AccountSelector(
-                    accounts = accounts,
-                    selectedAccountId = selectedFromAccountId,
-                    onAccountSelected = { selectedFromAccountId = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = "转出账户",
-                )
-                if (fromAccountError != null) {
-                    Text(
-                        text = fromAccountError,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    AccountSelector(
+                        accounts = accounts,
+                        selectedAccountId = selectedFromAccountId,
+                        onAccountSelected = { selectedFromAccountId = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = "转出账户",
                     )
+                    if (fromAccountError != null) {
+                        Text(
+                            text = fromAccountError,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    AccountSelector(
+                        accounts = accounts,
+                        selectedAccountId = selectedToAccountId,
+                        onAccountSelected = { selectedToAccountId = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = "转入账户",
+                    )
+                    if (toAccountError != null) {
+                        Text(
+                            text = toAccountError,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
                 }
             }
         }
