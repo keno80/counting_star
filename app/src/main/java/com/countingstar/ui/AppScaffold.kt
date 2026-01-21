@@ -14,6 +14,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -58,6 +59,8 @@ import com.countingstar.domain.CategoryRepository
 import com.countingstar.domain.CategoryType
 import com.countingstar.domain.InitializeDefaultDataUseCase
 import com.countingstar.domain.PreferenceRepository
+import com.countingstar.domain.Transaction
+import com.countingstar.domain.TransactionRepository
 import com.countingstar.domain.TransactionType
 import com.countingstar.feature.home.HomeDestination
 import com.countingstar.feature.home.homeRoute
@@ -285,6 +288,8 @@ sealed interface AddTransactionUiEvent {
         val accountId: String?,
     ) : AddTransactionUiEvent
 
+    object CopyPreviousClicked : AddTransactionUiEvent
+
     object SaveClicked : AddTransactionUiEvent
 }
 
@@ -292,6 +297,10 @@ sealed interface AddTransactionUiEffect {
     object SaveSuccess : AddTransactionUiEffect
 
     data class SaveFailed(
+        val message: String,
+    ) : AddTransactionUiEffect
+
+    data class ShowMessage(
         val message: String,
     ) : AddTransactionUiEffect
 }
@@ -304,6 +313,19 @@ private fun amountToCents(amount: String): Long? {
         .toLong()
 }
 
+private fun centsToAmountString(amount: Long): String =
+    BigDecimal(amount)
+        .movePointLeft(2)
+        .setScale(2, RoundingMode.HALF_UP)
+        .toPlainString()
+
+private fun recordTypeFromTransaction(type: TransactionType): RecordType =
+    when (type) {
+        TransactionType.INCOME -> RecordType.INCOME
+        TransactionType.EXPENSE -> RecordType.EXPENSE
+        TransactionType.TRANSFER -> RecordType.TRANSFER
+    }
+
 @HiltViewModel
 class AddTransactionViewModel
     @Inject
@@ -314,6 +336,7 @@ class AddTransactionViewModel
         private val initializeDefaultDataUseCase: InitializeDefaultDataUseCase,
         private val accountRepository: AccountRepository,
         private val categoryRepository: CategoryRepository,
+        private val transactionRepository: TransactionRepository,
     ) : ViewModel() {
         private val _uiState =
             MutableStateFlow(
@@ -324,6 +347,7 @@ class AddTransactionViewModel
         val uiState: StateFlow<AddTransactionUiState> = _uiState.asStateFlow()
         private val _effect = MutableSharedFlow<AddTransactionUiEffect>()
         val effect = _effect.asSharedFlow()
+        private var latestTransaction: Transaction? = null
 
         init {
             viewModelScope.launch {
@@ -388,6 +412,13 @@ class AddTransactionViewModel
                             }
                         }
                 }
+                launch {
+                    transactionRepository
+                        .observeTransactionsByLedger(ledgerId)
+                        .collectLatest { transactions ->
+                            latestTransaction = transactions.firstOrNull()
+                        }
+                }
             }
         }
 
@@ -434,6 +465,48 @@ class AddTransactionViewModel
                 }
                 is AddTransactionUiEvent.ToAccountSelected -> {
                     updateState { current -> current.copy(selectedToAccountId = event.accountId) }
+                }
+                AddTransactionUiEvent.CopyPreviousClicked -> {
+                    viewModelScope.launch {
+                        val transaction = latestTransaction
+                        if (transaction == null) {
+                            _effect.emit(AddTransactionUiEffect.ShowMessage("暂无上一笔"))
+                            return@launch
+                        }
+                        updateState { current ->
+                            val recordType = recordTypeFromTransaction(transaction.type)
+                            current.copy(
+                                selectedType = recordType,
+                                amount = centsToAmountString(transaction.amount),
+                                note = transaction.note,
+                                selectedTimestamp = transaction.occurredAt,
+                                selectedAccountId =
+                                    if (recordType == RecordType.TRANSFER) {
+                                        null
+                                    } else {
+                                        transaction.accountId
+                                    },
+                                selectedCategoryId =
+                                    if (recordType == RecordType.TRANSFER) {
+                                        null
+                                    } else {
+                                        transaction.categoryId
+                                    },
+                                selectedFromAccountId =
+                                    if (recordType == RecordType.TRANSFER) {
+                                        transaction.fromAccountId
+                                    } else {
+                                        null
+                                    },
+                                selectedToAccountId =
+                                    if (recordType == RecordType.TRANSFER) {
+                                        transaction.toAccountId
+                                    } else {
+                                        null
+                                    },
+                            )
+                        }
+                    }
                 }
                 AddTransactionUiEvent.SaveClicked -> {
                     viewModelScope.launch {
@@ -565,6 +638,11 @@ fun AddTransactionScreen(
                         }
                     }
                 }
+                is AddTransactionUiEffect.ShowMessage -> {
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar(effect.message)
+                    }
+                }
             }
         }
     }
@@ -594,6 +672,12 @@ fun AddTransactionScreen(
                     label = { Text(type.label) },
                 )
             }
+        }
+        OutlinedButton(
+            onClick = { viewModel.onEvent(AddTransactionUiEvent.CopyPreviousClicked) },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(text = "复制上一笔")
         }
         AmountInput(
             amount = uiState.amount,
