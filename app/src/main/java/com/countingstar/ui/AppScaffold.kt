@@ -6,6 +6,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -214,11 +217,20 @@ fun AddTransactionScreen() {
         } else {
             "分类必填"
         }
+    val isSaveEnabled =
+        when (selectedType) {
+            RecordType.TRANSFER ->
+                amountError == null && fromAccountError == null && toAccountError == null
+            RecordType.EXPENSE,
+            RecordType.INCOME,
+            -> amountError == null && accountError == null && categoryError == null
+        }
 
     Column(
         modifier =
             Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -346,6 +358,13 @@ fun AddTransactionScreen() {
                     }
                 }
             }
+        }
+        Button(
+            onClick = {},
+            enabled = isSaveEnabled,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(text = "保存")
         }
     }
 }
