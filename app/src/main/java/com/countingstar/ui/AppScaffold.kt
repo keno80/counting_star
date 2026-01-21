@@ -37,6 +37,7 @@ import com.countingstar.core.ui.component.AccountSelector
 import com.countingstar.core.ui.component.AmountInput
 import com.countingstar.core.ui.component.CategoryItem
 import com.countingstar.core.ui.component.CategorySelector
+import com.countingstar.core.ui.component.DateTimePicker
 import com.countingstar.feature.home.HomeDestination
 import com.countingstar.feature.home.homeRoute
 import com.countingstar.navigation.TopLevelDestination
@@ -142,6 +143,7 @@ private enum class RecordType(
 fun AddTransactionScreen() {
     var selectedType by remember { mutableStateOf(RecordType.EXPENSE) }
     var amount by remember { mutableStateOf("") }
+    var selectedTimestamp by remember { mutableStateOf(System.currentTimeMillis()) }
     var selectedAccountId by remember { mutableStateOf<String?>(null) }
     var selectedCategoryId by remember { mutableStateOf<String?>(null) }
     var selectedFromAccountId by remember { mutableStateOf<String?>(null) }
@@ -249,6 +251,16 @@ fun AddTransactionScreen() {
             isError = amountError != null,
             errorMessage = amountError,
         )
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = "日期时间",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            DateTimePicker(
+                timestamp = selectedTimestamp,
+                onDateTimeSelected = { selectedTimestamp = it },
+            )
+        }
         if (selectedType != RecordType.TRANSFER) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {

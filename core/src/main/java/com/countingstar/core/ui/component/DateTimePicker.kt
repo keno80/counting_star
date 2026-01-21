@@ -1,11 +1,16 @@
 package com.countingstar.core.ui.component
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -13,6 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -28,8 +34,9 @@ fun DateTimePicker(
     modifier: Modifier = Modifier,
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    var pendingDateMillis by remember { mutableStateOf<Long?>(null) }
 
-    // Date Picker Logic
     if (showDatePicker) {
         val datePickerState =
             rememberDatePickerState(
@@ -46,14 +53,9 @@ fun DateTimePicker(
                 TextButton(
                     onClick = {
                         showDatePicker = false
-                        // Combine selected date with existing time or default time
                         datePickerState.selectedDateMillis?.let { selectedDate ->
-                            // Here we should ideally launch time picker or just update date
-                            // For simplicity, let's update date part only, preserving time?
-                            // Or better: update date, then maybe show time picker?
-                            // Let's just update date part of the timestamp
-                            val newTimestamp = updateDatePart(timestamp, selectedDate)
-                            onDateTimeSelected(newTimestamp)
+                            pendingDateMillis = selectedDate
+                            showTimePicker = true
                         }
                     },
                     enabled = confirmEnabled.value,
@@ -73,32 +75,98 @@ fun DateTimePicker(
         }
     }
 
-    // UI Trigger - simplified text button for now
-    TextButton(onClick = { showDatePicker = true }, modifier = modifier) {
-        Text(text = formatDateTime(timestamp))
+    if (showTimePicker) {
+        val calendar = Calendar.getInstance().apply { timeInMillis = timestamp }
+        val timePickerState =
+            rememberTimePickerState(
+                initialHour = calendar.get(Calendar.HOUR_OF_DAY),
+                initialMinute = calendar.get(Calendar.MINUTE),
+                is24Hour = true,
+            )
+        AlertDialog(
+            onDismissRequest = {
+                showTimePicker = false
+                pendingDateMillis = null
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val baseDate = pendingDateMillis ?: timestamp
+                        val newTimestamp =
+                            combineDateAndTime(
+                                baseDate,
+                                timePickerState.hour,
+                                timePickerState.minute,
+                            )
+                        pendingDateMillis = null
+                        showTimePicker = false
+                        onDateTimeSelected(newTimestamp)
+                    },
+                ) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showTimePicker = false
+                        pendingDateMillis = null
+                    },
+                ) {
+                    Text("Cancel")
+                }
+            },
+            text = {
+                TimePicker(state = timePickerState)
+            },
+        )
+    }
+
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        TextButton(onClick = { showDatePicker = true }) {
+            Text(text = formatDate(timestamp))
+        }
+        TextButton(
+            onClick = {
+                pendingDateMillis = null
+                showTimePicker = true
+            },
+        ) {
+            Text(text = formatTime(timestamp))
+        }
     }
 }
 
-private fun updateDatePart(
-    originalTimestamp: Long,
-    newDateMillis: Long,
+private fun combineDateAndTime(
+    dateMillis: Long,
+    hour: Int,
+    minute: Int,
 ): Long {
-    // Simple implementation: use Calendar (since java.time is desugared)
-    val original = Calendar.getInstance().apply { timeInMillis = originalTimestamp }
-    val newDate = Calendar.getInstance().apply { timeInMillis = newDateMillis }
-
-    original.set(Calendar.YEAR, newDate.get(Calendar.YEAR))
-    original.set(Calendar.MONTH, newDate.get(Calendar.MONTH))
-    original.set(Calendar.DAY_OF_MONTH, newDate.get(Calendar.DAY_OF_MONTH))
-
-    return original.timeInMillis
+    val calendar = Calendar.getInstance().apply { timeInMillis = dateMillis }
+    calendar.set(Calendar.HOUR_OF_DAY, hour)
+    calendar.set(Calendar.MINUTE, minute)
+    calendar.set(Calendar.SECOND, 0)
+    calendar.set(Calendar.MILLISECOND, 0)
+    return calendar.timeInMillis
 }
 
-fun formatDateTime(timestamp: Long): String {
+fun formatDate(timestamp: Long): String {
     val instant = Instant.ofEpochMilli(timestamp)
     val formatter =
         DateTimeFormatter
-            .ofPattern("yyyy-MM-dd HH:mm", Locale.getDefault())
+            .ofPattern("yyyy-MM-dd", Locale.getDefault())
+            .withZone(ZoneId.systemDefault())
+    return formatter.format(instant)
+}
+
+fun formatTime(timestamp: Long): String {
+    val instant = Instant.ofEpochMilli(timestamp)
+    val formatter =
+        DateTimeFormatter
+            .ofPattern("HH:mm", Locale.getDefault())
             .withZone(ZoneId.systemDefault())
     return formatter.format(instant)
 }
