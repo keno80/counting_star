@@ -18,6 +18,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -289,6 +290,10 @@ sealed interface AddTransactionUiEvent {
 
 sealed interface AddTransactionUiEffect {
     object SaveSuccess : AddTransactionUiEffect
+
+    data class SaveFailed(
+        val message: String,
+    ) : AddTransactionUiEffect
 }
 
 private fun amountToCents(amount: String): Long? {
@@ -436,58 +441,67 @@ class AddTransactionViewModel
                         if (!current.isSaveEnabled) {
                             return@launch
                         }
-                        val ledgerId = preferenceRepository.getDefaultLedgerId() ?: return@launch
-                        val amountCents = amountToCents(current.amount) ?: return@launch
-                        when (current.selectedType) {
-                            RecordType.INCOME -> {
-                                val accountId = current.selectedAccountId ?: return@launch
-                                val categoryId = current.selectedCategoryId ?: return@launch
-                                addIncomeExpenseUseCase(
-                                    AddIncomeExpenseParams(
-                                        ledgerId = ledgerId,
-                                        type = TransactionType.INCOME,
-                                        amount = amountCents,
-                                        currency = "CNY",
-                                        occurredAt = current.selectedTimestamp,
-                                        note = current.note,
-                                        accountId = accountId,
-                                        categoryId = categoryId,
-                                    ),
-                                )
+                        val result =
+                            runCatching {
+                                val ledgerId =
+                                    requireNotNull(preferenceRepository.getDefaultLedgerId())
+                                val amountCents = requireNotNull(amountToCents(current.amount))
+                                when (current.selectedType) {
+                                    RecordType.INCOME -> {
+                                        val accountId = requireNotNull(current.selectedAccountId)
+                                        val categoryId = requireNotNull(current.selectedCategoryId)
+                                        addIncomeExpenseUseCase(
+                                            AddIncomeExpenseParams(
+                                                ledgerId = ledgerId,
+                                                type = TransactionType.INCOME,
+                                                amount = amountCents,
+                                                currency = "CNY",
+                                                occurredAt = current.selectedTimestamp,
+                                                note = current.note,
+                                                accountId = accountId,
+                                                categoryId = categoryId,
+                                            ),
+                                        )
+                                    }
+                                    RecordType.EXPENSE -> {
+                                        val accountId = requireNotNull(current.selectedAccountId)
+                                        val categoryId = requireNotNull(current.selectedCategoryId)
+                                        addIncomeExpenseUseCase(
+                                            AddIncomeExpenseParams(
+                                                ledgerId = ledgerId,
+                                                type = TransactionType.EXPENSE,
+                                                amount = amountCents,
+                                                currency = "CNY",
+                                                occurredAt = current.selectedTimestamp,
+                                                note = current.note,
+                                                accountId = accountId,
+                                                categoryId = categoryId,
+                                            ),
+                                        )
+                                    }
+                                    RecordType.TRANSFER -> {
+                                        val fromAccountId =
+                                            requireNotNull(current.selectedFromAccountId)
+                                        val toAccountId = requireNotNull(current.selectedToAccountId)
+                                        addTransferUseCase(
+                                            AddTransferParams(
+                                                ledgerId = ledgerId,
+                                                amount = amountCents,
+                                                currency = "CNY",
+                                                occurredAt = current.selectedTimestamp,
+                                                note = current.note,
+                                                fromAccountId = fromAccountId,
+                                                toAccountId = toAccountId,
+                                            ),
+                                        )
+                                    }
+                                }
                             }
-                            RecordType.EXPENSE -> {
-                                val accountId = current.selectedAccountId ?: return@launch
-                                val categoryId = current.selectedCategoryId ?: return@launch
-                                addIncomeExpenseUseCase(
-                                    AddIncomeExpenseParams(
-                                        ledgerId = ledgerId,
-                                        type = TransactionType.EXPENSE,
-                                        amount = amountCents,
-                                        currency = "CNY",
-                                        occurredAt = current.selectedTimestamp,
-                                        note = current.note,
-                                        accountId = accountId,
-                                        categoryId = categoryId,
-                                    ),
-                                )
-                            }
-                            RecordType.TRANSFER -> {
-                                val fromAccountId = current.selectedFromAccountId ?: return@launch
-                                val toAccountId = current.selectedToAccountId ?: return@launch
-                                addTransferUseCase(
-                                    AddTransferParams(
-                                        ledgerId = ledgerId,
-                                        amount = amountCents,
-                                        currency = "CNY",
-                                        occurredAt = current.selectedTimestamp,
-                                        note = current.note,
-                                        fromAccountId = fromAccountId,
-                                        toAccountId = toAccountId,
-                                    ),
-                                )
-                            }
+                        if (result.isSuccess) {
+                            _effect.emit(AddTransactionUiEffect.SaveSuccess)
+                        } else {
+                            _effect.emit(AddTransactionUiEffect.SaveFailed("保存失败，请重试"))
                         }
-                        _effect.emit(AddTransactionUiEffect.SaveSuccess)
                     }
                 }
             }
@@ -538,6 +552,18 @@ fun AddTransactionScreen(
                         snackbarHostState.showSnackbar("保存成功")
                     }
                     onNavigateBack()
+                }
+                is AddTransactionUiEffect.SaveFailed -> {
+                    coroutineScope.launch {
+                        val result =
+                            snackbarHostState.showSnackbar(
+                                message = effect.message,
+                                actionLabel = "重试",
+                            )
+                        if (result == SnackbarResult.ActionPerformed) {
+                            viewModel.onEvent(AddTransactionUiEvent.SaveClicked)
+                        }
+                    }
                 }
             }
         }
