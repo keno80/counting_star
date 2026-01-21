@@ -31,6 +31,7 @@ import com.countingstar.domain.Ledger
 import com.countingstar.domain.LedgerRepository
 import com.countingstar.domain.Merchant
 import com.countingstar.domain.MerchantRepository
+import com.countingstar.domain.PreferenceRepository
 import com.countingstar.domain.Tag
 import com.countingstar.domain.TagRepository
 import com.countingstar.domain.Transaction
@@ -39,6 +40,7 @@ import com.countingstar.domain.TransactionType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
@@ -66,6 +68,61 @@ class GreetingRepositoryImpl
                 preferences[greetingKey] = text
             }
             greetingDao.upsert(GreetingEntity(text = text))
+        }
+    }
+
+class PreferenceRepositoryImpl
+    @Inject
+    constructor(
+        private val dataStore: DataStore<Preferences>,
+    ) : PreferenceRepository {
+        private val defaultLedgerIdKey = stringPreferencesKey("default_ledger_id")
+        private val defaultAccountIdKey = stringPreferencesKey("default_account_id")
+
+        override fun observeDefaultLedgerId(): Flow<String?> =
+            dataStore.data.map { preferences ->
+                preferences[defaultLedgerIdKey]
+            }
+
+        override suspend fun getDefaultLedgerId(): String? =
+            dataStore.data
+                .map { preferences ->
+                    preferences[defaultLedgerIdKey]
+                }.first()
+
+        override suspend fun setDefaultLedgerId(ledgerId: String) {
+            dataStore.edit { preferences ->
+                preferences[defaultLedgerIdKey] = ledgerId
+            }
+        }
+
+        override suspend fun clearDefaultLedgerId() {
+            dataStore.edit { preferences ->
+                preferences.remove(defaultLedgerIdKey)
+            }
+        }
+
+        override fun observeDefaultAccountId(): Flow<String?> =
+            dataStore.data.map { preferences ->
+                preferences[defaultAccountIdKey]
+            }
+
+        override suspend fun getDefaultAccountId(): String? =
+            dataStore.data
+                .map { preferences ->
+                    preferences[defaultAccountIdKey]
+                }.first()
+
+        override suspend fun setDefaultAccountId(accountId: String) {
+            dataStore.edit { preferences ->
+                preferences[defaultAccountIdKey] = accountId
+            }
+        }
+
+        override suspend fun clearDefaultAccountId() {
+            dataStore.edit { preferences ->
+                preferences.remove(defaultAccountIdKey)
+            }
         }
     }
 

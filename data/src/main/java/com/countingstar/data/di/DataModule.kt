@@ -11,6 +11,7 @@ import com.countingstar.data.CategoryRepositoryImpl
 import com.countingstar.data.GreetingRepositoryImpl
 import com.countingstar.data.LedgerRepositoryImpl
 import com.countingstar.data.MerchantRepositoryImpl
+import com.countingstar.data.PreferenceRepositoryImpl
 import com.countingstar.data.TagRepositoryImpl
 import com.countingstar.data.TransactionRepositoryImpl
 import com.countingstar.data.local.AccountDao
@@ -27,6 +28,7 @@ import com.countingstar.domain.CategoryRepository
 import com.countingstar.domain.GreetingRepository
 import com.countingstar.domain.LedgerRepository
 import com.countingstar.domain.MerchantRepository
+import com.countingstar.domain.PreferenceRepository
 import com.countingstar.domain.TagRepository
 import com.countingstar.domain.TransactionRepository
 import dagger.Binds
@@ -92,6 +94,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindGreetingRepository(impl: GreetingRepositoryImpl): GreetingRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPreferenceRepository(impl: PreferenceRepositoryImpl): PreferenceRepository
 
     @Binds
     @Singleton
