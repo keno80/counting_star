@@ -145,6 +145,7 @@ fun AddTransactionScreen() {
     var selectedType by remember { mutableStateOf(RecordType.EXPENSE) }
     var amount by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
+    var merchant by remember { mutableStateOf("") }
     var selectedTimestamp by remember { mutableStateOf(System.currentTimeMillis()) }
     var selectedAccountId by remember { mutableStateOf<String?>(null) }
     var selectedCategoryId by remember { mutableStateOf<String?>(null) }
@@ -269,6 +270,13 @@ fun AddTransactionScreen() {
             modifier = Modifier.fillMaxWidth(),
             label = { Text("备注") },
             maxLines = 3,
+        )
+        OutlinedTextField(
+            value = merchant,
+            onValueChange = { merchant = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("商家") },
+            singleLine = true,
         )
         if (selectedType != RecordType.TRANSFER) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
