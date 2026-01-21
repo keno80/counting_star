@@ -11,6 +11,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -143,6 +144,7 @@ private enum class RecordType(
 fun AddTransactionScreen() {
     var selectedType by remember { mutableStateOf(RecordType.EXPENSE) }
     var amount by remember { mutableStateOf("") }
+    var note by remember { mutableStateOf("") }
     var selectedTimestamp by remember { mutableStateOf(System.currentTimeMillis()) }
     var selectedAccountId by remember { mutableStateOf<String?>(null) }
     var selectedCategoryId by remember { mutableStateOf<String?>(null) }
@@ -261,6 +263,13 @@ fun AddTransactionScreen() {
                 onDateTimeSelected = { selectedTimestamp = it },
             )
         }
+        OutlinedTextField(
+            value = note,
+            onValueChange = { note = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("备注") },
+            maxLines = 3,
+        )
         if (selectedType != RecordType.TRANSFER) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
