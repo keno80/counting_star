@@ -32,6 +32,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.countingstar.core.ui.EmptyState
 import com.countingstar.core.ui.LocalSnackbarHostState
+import com.countingstar.core.ui.component.AccountItem
+import com.countingstar.core.ui.component.AccountSelector
 import com.countingstar.core.ui.component.AmountInput
 import com.countingstar.feature.home.HomeDestination
 import com.countingstar.feature.home.homeRoute
@@ -138,6 +140,14 @@ private enum class RecordType(
 fun AddTransactionScreen() {
     var selectedType by remember { mutableStateOf(RecordType.EXPENSE) }
     var amount by remember { mutableStateOf("") }
+    var selectedAccountId by remember { mutableStateOf<String?>(null) }
+    val accounts =
+        remember {
+            listOf(
+                AccountItem(id = "cash", name = "现金", balance = 0L),
+                AccountItem(id = "card", name = "银行卡", balance = 120_00L),
+            )
+        }
     val amountValue = amount.toBigDecimalOrNull()
     val amountError =
         when {
@@ -145,6 +155,12 @@ fun AddTransactionScreen() {
             amountValue == null -> "金额格式错误"
             amountValue <= BigDecimal.ZERO -> "金额需大于0"
             else -> null
+        }
+    val accountError =
+        if (selectedType == RecordType.TRANSFER || !selectedAccountId.isNullOrBlank()) {
+            null
+        } else {
+            "账户必填"
         }
 
     Column(
@@ -177,5 +193,22 @@ fun AddTransactionScreen() {
             isError = amountError != null,
             errorMessage = amountError,
         )
+        if (selectedType != RecordType.TRANSFER) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                AccountSelector(
+                    accounts = accounts,
+                    selectedAccountId = selectedAccountId,
+                    onAccountSelected = { selectedAccountId = it },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (accountError != null) {
+                    Text(
+                        text = accountError,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        }
     }
 }
