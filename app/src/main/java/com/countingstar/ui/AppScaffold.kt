@@ -21,9 +21,11 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -44,19 +46,28 @@ import com.countingstar.core.ui.component.AmountInput
 import com.countingstar.core.ui.component.CategoryItem
 import com.countingstar.core.ui.component.CategorySelector
 import com.countingstar.core.ui.component.DateTimePicker
+import com.countingstar.domain.Account
+import com.countingstar.domain.AccountRepository
 import com.countingstar.domain.AddIncomeExpenseParams
 import com.countingstar.domain.AddIncomeExpenseUseCase
 import com.countingstar.domain.AddTransferParams
 import com.countingstar.domain.AddTransferUseCase
+import com.countingstar.domain.Category
+import com.countingstar.domain.CategoryRepository
+import com.countingstar.domain.CategoryType
+import com.countingstar.domain.InitializeDefaultDataUseCase
 import com.countingstar.domain.PreferenceRepository
 import com.countingstar.domain.TransactionType
 import com.countingstar.feature.home.HomeDestination
 import com.countingstar.feature.home.homeRoute
 import com.countingstar.navigation.TopLevelDestination
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
@@ -135,7 +146,9 @@ fun AppNavHost(
         )
 
         composable(addTransactionRoute) {
-            AddTransactionScreen()
+            AddTransactionScreen(
+                onNavigateBack = { navController.popBackStack() },
+            )
         }
 
         composable(TopLevelDestination.TRANSACTIONS.route) {
@@ -274,6 +287,10 @@ sealed interface AddTransactionUiEvent {
     object SaveClicked : AddTransactionUiEvent
 }
 
+sealed interface AddTransactionUiEffect {
+    object SaveSuccess : AddTransactionUiEffect
+}
+
 private fun amountToCents(amount: String): Long? {
     val value = amount.toBigDecimalOrNull() ?: return null
     return value
@@ -289,30 +306,85 @@ class AddTransactionViewModel
         private val addIncomeExpenseUseCase: AddIncomeExpenseUseCase,
         private val addTransferUseCase: AddTransferUseCase,
         private val preferenceRepository: PreferenceRepository,
+        private val initializeDefaultDataUseCase: InitializeDefaultDataUseCase,
+        private val accountRepository: AccountRepository,
+        private val categoryRepository: CategoryRepository,
     ) : ViewModel() {
         private val _uiState =
             MutableStateFlow(
                 buildAddTransactionUiState(
-                    AddTransactionUiState(
-                        accounts =
-                            listOf(
-                                AccountItem(id = "cash", name = "现金", balance = 0L),
-                                AccountItem(id = "card", name = "银行卡", balance = 120_00L),
-                            ),
-                        expenseCategories =
-                            listOf(
-                                CategoryItem(id = "food", name = "餐饮"),
-                                CategoryItem(id = "transport", name = "交通"),
-                            ),
-                        incomeCategories =
-                            listOf(
-                                CategoryItem(id = "salary", name = "工资"),
-                                CategoryItem(id = "bonus", name = "奖金"),
-                            ),
-                    ),
+                    AddTransactionUiState(),
                 ),
             )
         val uiState: StateFlow<AddTransactionUiState> = _uiState.asStateFlow()
+        private val _effect = MutableSharedFlow<AddTransactionUiEffect>()
+        val effect = _effect.asSharedFlow()
+
+        init {
+            viewModelScope.launch {
+                val result = initializeDefaultDataUseCase()
+                val ledgerId = result.ledgerId
+                launch {
+                    accountRepository.observeAccountsByLedger(ledgerId).collectLatest { accounts ->
+                        val items = accounts.map { it.toItem() }
+                        val accountIds = accounts.map { it.id }.toSet()
+                        updateState { current ->
+                            current.copy(
+                                accounts = items,
+                                selectedAccountId =
+                                    current.selectedAccountId?.takeIf { accountIds.contains(it) },
+                                selectedFromAccountId =
+                                    current.selectedFromAccountId?.takeIf { accountIds.contains(it) },
+                                selectedToAccountId =
+                                    current.selectedToAccountId?.takeIf { accountIds.contains(it) },
+                            )
+                        }
+                    }
+                }
+                launch {
+                    categoryRepository
+                        .observeCategories(ledgerId, CategoryType.EXPENSE)
+                        .collectLatest { categories ->
+                            val items = categories.map { it.toItem() }
+                            val categoryIds = categories.map { it.id }.toSet()
+                            updateState { current ->
+                                current.copy(
+                                    expenseCategories = items,
+                                    selectedCategoryId =
+                                        if (current.selectedType == RecordType.EXPENSE) {
+                                            current.selectedCategoryId?.takeIf {
+                                                categoryIds.contains(it)
+                                            }
+                                        } else {
+                                            current.selectedCategoryId
+                                        },
+                                )
+                            }
+                        }
+                }
+                launch {
+                    categoryRepository
+                        .observeCategories(ledgerId, CategoryType.INCOME)
+                        .collectLatest { categories ->
+                            val items = categories.map { it.toItem() }
+                            val categoryIds = categories.map { it.id }.toSet()
+                            updateState { current ->
+                                current.copy(
+                                    incomeCategories = items,
+                                    selectedCategoryId =
+                                        if (current.selectedType == RecordType.INCOME) {
+                                            current.selectedCategoryId?.takeIf {
+                                                categoryIds.contains(it)
+                                            }
+                                        } else {
+                                            current.selectedCategoryId
+                                        },
+                                )
+                            }
+                        }
+                }
+            }
+        }
 
         fun onEvent(event: AddTransactionUiEvent) {
             when (event) {
@@ -415,6 +487,7 @@ class AddTransactionViewModel
                                 )
                             }
                         }
+                        _effect.emit(AddTransactionUiEffect.SaveSuccess)
                     }
                 }
             }
@@ -427,16 +500,48 @@ class AddTransactionViewModel
         }
     }
 
+private fun Account.toItem(): AccountItem =
+    AccountItem(
+        id = id,
+        name = name,
+        balance = currentBalance,
+    )
+
+private fun Category.toItem(): CategoryItem =
+    CategoryItem(
+        id = id,
+        name = name,
+        parentId = parentId,
+    )
+
 @Suppress("ktlint:standard:function-naming")
 @Composable
-fun AddTransactionScreen(viewModel: AddTransactionViewModel = hiltViewModel()) {
+fun AddTransactionScreen(
+    onNavigateBack: () -> Unit,
+    viewModel: AddTransactionViewModel = hiltViewModel(),
+) {
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = LocalSnackbarHostState.current
+    val coroutineScope = rememberCoroutineScope()
     val categories =
         if (uiState.selectedType == RecordType.INCOME) {
             uiState.incomeCategories
         } else {
             uiState.expenseCategories
         }
+
+    LaunchedEffect(viewModel) {
+        viewModel.effect.collectLatest { effect ->
+            when (effect) {
+                AddTransactionUiEffect.SaveSuccess -> {
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar("保存成功")
+                    }
+                    onNavigateBack()
+                }
+            }
+        }
+    }
 
     Column(
         modifier =
