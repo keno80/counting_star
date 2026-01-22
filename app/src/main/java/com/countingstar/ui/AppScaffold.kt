@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -49,6 +51,9 @@ import com.countingstar.core.ui.component.AmountInput
 import com.countingstar.core.ui.component.CategoryItem
 import com.countingstar.core.ui.component.CategorySelector
 import com.countingstar.core.ui.component.DateTimePicker
+import com.countingstar.core.ui.component.formatAmount
+import com.countingstar.core.ui.component.formatDate
+import com.countingstar.core.ui.component.formatTime
 import com.countingstar.domain.Account
 import com.countingstar.domain.AccountRepository
 import com.countingstar.domain.AddIncomeExpenseParams
@@ -60,8 +65,12 @@ import com.countingstar.domain.CategoryRepository
 import com.countingstar.domain.CategoryType
 import com.countingstar.domain.InitializeDefaultDataUseCase
 import com.countingstar.domain.PreferenceRepository
+import com.countingstar.domain.QueryTransactionsUseCase
+import com.countingstar.domain.SortDirection
 import com.countingstar.domain.Transaction
+import com.countingstar.domain.TransactionQueryParams
 import com.countingstar.domain.TransactionRepository
+import com.countingstar.domain.TransactionSortField
 import com.countingstar.domain.TransactionType
 import com.countingstar.feature.home.HomeDestination
 import com.countingstar.feature.home.homeRoute
@@ -157,7 +166,7 @@ fun AppNavHost(
         }
 
         composable(TopLevelDestination.TRANSACTIONS.route) {
-            EmptyState(message = "流水列表功能开发中")
+            TransactionListScreen()
         }
         composable(TopLevelDestination.STATISTICS.route) {
             EmptyState(message = "统计功能开发中")
@@ -380,6 +389,93 @@ private fun templateLabel(
             "支出 · ${categoryName(template.categoryId, expenseCategories)} · ${accountName(template.accountId)} · $amount"
         RecordType.INCOME ->
             "收入 · ${categoryName(template.categoryId, incomeCategories)} · ${accountName(template.accountId)} · $amount"
+    }
+}
+
+data class TransactionListUiState(
+    val transactions: List<Transaction> = emptyList(),
+)
+
+private fun transactionTypeLabel(type: TransactionType): String =
+    when (type) {
+        TransactionType.INCOME -> "收入"
+        TransactionType.EXPENSE -> "支出"
+        TransactionType.TRANSFER -> "转账"
+    }
+
+private fun transactionAmountText(transaction: Transaction): String {
+    val amount = formatAmount(transaction.amount)
+    return when (transaction.type) {
+        TransactionType.INCOME -> "+$amount"
+        TransactionType.EXPENSE -> "-$amount"
+        TransactionType.TRANSFER -> amount
+    }
+}
+
+@HiltViewModel
+class TransactionListViewModel
+    @Inject
+    constructor(
+        private val initializeDefaultDataUseCase: InitializeDefaultDataUseCase,
+        private val queryTransactionsUseCase: QueryTransactionsUseCase,
+    ) : ViewModel() {
+        private val _uiState = MutableStateFlow(TransactionListUiState())
+        val uiState: StateFlow<TransactionListUiState> = _uiState.asStateFlow()
+
+        init {
+            viewModelScope.launch {
+                val ledgerId = initializeDefaultDataUseCase().ledgerId
+                queryTransactionsUseCase(
+                    TransactionQueryParams(
+                        ledgerId = ledgerId,
+                        sortField = TransactionSortField.OCCURRED_AT,
+                        sortDirection = SortDirection.DESC,
+                    ),
+                ).collectLatest { transactions ->
+                    _uiState.value = TransactionListUiState(transactions = transactions)
+                }
+            }
+        }
+    }
+
+@Suppress("ktlint:standard:function-naming")
+@Composable
+fun TransactionListScreen(viewModel: TransactionListViewModel = hiltViewModel()) {
+    val uiState by viewModel.uiState.collectAsState()
+    val transactions = uiState.transactions
+
+    if (transactions.isEmpty()) {
+        EmptyState(message = "暂无流水")
+        return
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        items(transactions, key = { it.id }) { transaction ->
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(text = transactionTypeLabel(transaction.type))
+                    Text(text = transactionAmountText(transaction))
+                }
+                Text(
+                    text = "${formatDate(transaction.occurredAt)} ${formatTime(transaction.occurredAt)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (transaction.note.isNotBlank()) {
+                    Text(
+                        text = transaction.note,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
     }
 }
 
