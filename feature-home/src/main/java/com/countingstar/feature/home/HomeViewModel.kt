@@ -17,6 +17,8 @@ import com.countingstar.domain.Transaction
 import com.countingstar.domain.TransactionQueryParams
 import com.countingstar.domain.TransactionSortField
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,6 +44,7 @@ data class HomeUiState(
     val transactions: List<Transaction> = emptyList(),
     val accountMap: Map<String, Account> = emptyMap(),
     val categoryMap: Map<String, Category> = emptyMap(),
+    val isRefreshing: Boolean = false,
 )
 
 @HiltViewModel
@@ -56,6 +59,7 @@ class HomeViewModel
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(HomeUiState())
         val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+        private var refreshJob: Job? = null
 
         init {
             viewModelScope.launch {
@@ -137,6 +141,16 @@ class HomeViewModel
                     }
                 }
             }
+        }
+
+        fun refresh() {
+            refreshJob?.cancel()
+            refreshJob =
+                viewModelScope.launch {
+                    _uiState.update { current -> current.copy(isRefreshing = true) }
+                    delay(500)
+                    _uiState.update { current -> current.copy(isRefreshing = false) }
+                }
         }
     }
 

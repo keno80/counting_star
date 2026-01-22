@@ -33,6 +33,7 @@ fun homeRouteContent(
     homeScreen(
         uiState = uiState,
         onAddTransaction = onAddTransaction,
+        onRefresh = viewModel::refresh,
         onStatisticsClick = onStatisticsClick,
     )
 }

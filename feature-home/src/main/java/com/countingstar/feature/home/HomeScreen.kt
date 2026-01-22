@@ -12,6 +12,10 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
@@ -41,10 +45,12 @@ import com.countingstar.domain.Transaction
 import com.countingstar.domain.TransactionType
 import kotlin.math.abs
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun homeScreen(
     uiState: HomeUiState,
     onAddTransaction: () -> Unit,
+    onRefresh: () -> Unit,
     onStatisticsClick: () -> Unit,
 ) {
     val transactions = uiState.transactions
@@ -80,6 +86,11 @@ fun homeScreen(
         }
 
     val listState = rememberLazyListState()
+    val pullRefreshState =
+        rememberPullRefreshState(
+            refreshing = uiState.isRefreshing,
+            onRefresh = onRefresh,
+        )
     val stickyDate by remember(listItems, listState) {
         derivedStateOf {
             var date: String? = null
@@ -107,6 +118,7 @@ fun homeScreen(
         modifier =
             Modifier
                 .fillMaxSize()
+                .pullRefresh(pullRefreshState)
                 .padding(24.dp),
     ) {
         if (hasTransactions) {
@@ -174,6 +186,11 @@ fun homeScreen(
                 contentDescription = "记一笔",
             )
         }
+        PullRefreshIndicator(
+            refreshing = uiState.isRefreshing,
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter),
+        )
     }
 }
 
@@ -183,6 +200,7 @@ fun homeScreenPreview() {
     homeScreen(
         uiState = HomeUiState(),
         onAddTransaction = {},
+        onRefresh = {},
         onStatisticsClick = {},
     )
 }
