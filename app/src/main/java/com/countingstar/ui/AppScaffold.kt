@@ -150,6 +150,8 @@ fun AppNavHost(
     modifier: Modifier = Modifier,
 ) {
     val addTransactionRoute = "add-transaction"
+    val snackbarHostState = LocalSnackbarHostState.current
+    val coroutineScope = rememberCoroutineScope()
     NavHost(
         navController = navController,
         startDestination = HomeDestination.ROUTE,
@@ -159,6 +161,17 @@ fun AppNavHost(
             onAddTransaction = {
                 navController.navigate(addTransactionRoute)
             },
+            onTransfer = {
+                navController.navigate(addTransactionRoute)
+            },
+            onFilter = {
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("筛选功能开发中")
+                }
+            },
+            onStatisticsClick = {
+                navController.navigate(TopLevelDestination.STATISTICS.route)
+            },
         )
 
         composable(addTransactionRoute) {
@@ -167,11 +180,6 @@ fun AppNavHost(
             )
         }
 
-        composable(TopLevelDestination.TRANSACTIONS.route) {
-            TransactionListScreen(
-                onAddTransaction = { navController.navigate(addTransactionRoute) },
-            )
-        }
         composable(TopLevelDestination.STATISTICS.route) {
             EmptyState(message = "统计功能开发中")
         }

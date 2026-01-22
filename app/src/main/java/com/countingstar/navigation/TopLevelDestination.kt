@@ -1,7 +1,6 @@
 package com.countingstar.navigation
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
@@ -14,7 +13,6 @@ enum class TopLevelDestination(
     val label: String,
 ) {
     HOME(HomeDestination.ROUTE, Icons.Default.Home, "首页"),
-    TRANSACTIONS("transactions", Icons.Default.DateRange, "流水"),
     STATISTICS("statistics", Icons.Default.Info, "统计"),
     SETTINGS("settings", Icons.Default.Settings, "设置"),
 }
