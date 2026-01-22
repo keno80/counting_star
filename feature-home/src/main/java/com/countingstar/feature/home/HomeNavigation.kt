@@ -13,15 +13,11 @@ object HomeDestination {
 
 fun NavGraphBuilder.homeRoute(
     onAddTransaction: () -> Unit,
-    onTransfer: () -> Unit,
-    onFilter: () -> Unit,
     onStatisticsClick: () -> Unit,
 ) {
     composable(route = HomeDestination.ROUTE) {
         homeRouteContent(
             onAddTransaction = onAddTransaction,
-            onTransfer = onTransfer,
-            onFilter = onFilter,
             onStatisticsClick = onStatisticsClick,
         )
     }
@@ -30,8 +26,6 @@ fun NavGraphBuilder.homeRoute(
 @Composable
 fun homeRouteContent(
     onAddTransaction: () -> Unit,
-    onTransfer: () -> Unit,
-    onFilter: () -> Unit,
     onStatisticsClick: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
@@ -39,8 +33,6 @@ fun homeRouteContent(
     homeScreen(
         uiState = uiState,
         onAddTransaction = onAddTransaction,
-        onTransfer = onTransfer,
-        onFilter = onFilter,
         onStatisticsClick = onStatisticsClick,
     )
 }

@@ -11,9 +11,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -24,6 +28,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -90,15 +95,41 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import javax.inject.Inject
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Suppress("ktlint:standard:function-naming")
 @Composable
 fun CountingStarApp() {
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = navBackStackEntry?.destination
+    val showFilter = currentDestination?.route == HomeDestination.ROUTE
 
     CompositionLocalProvider(LocalSnackbarHostState provides snackbarHostState) {
         Scaffold(
             snackbarHost = { SnackbarHost(snackbarHostState) },
+            topBar = {
+                if (showFilter) {
+                    TopAppBar(
+                        title = { Text("首页") },
+                        actions = {
+                            IconButton(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("筛选功能开发中")
+                                    }
+                                },
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.FilterList,
+                                    contentDescription = "筛选",
+                                )
+                            }
+                        },
+                    )
+                }
+            },
             bottomBar = {
                 AppBottomBar(navController = navController)
             },
@@ -150,8 +181,6 @@ fun AppNavHost(
     modifier: Modifier = Modifier,
 ) {
     val addTransactionRoute = "add-transaction"
-    val snackbarHostState = LocalSnackbarHostState.current
-    val coroutineScope = rememberCoroutineScope()
     NavHost(
         navController = navController,
         startDestination = HomeDestination.ROUTE,
@@ -160,14 +189,6 @@ fun AppNavHost(
         homeRoute(
             onAddTransaction = {
                 navController.navigate(addTransactionRoute)
-            },
-            onTransfer = {
-                navController.navigate(addTransactionRoute)
-            },
-            onFilter = {
-                coroutineScope.launch {
-                    snackbarHostState.showSnackbar("筛选功能开发中")
-                }
             },
             onStatisticsClick = {
                 navController.navigate(TopLevelDestination.STATISTICS.route)

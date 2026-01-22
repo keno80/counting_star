@@ -10,10 +10,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -42,22 +45,12 @@ import kotlin.math.abs
 fun homeScreen(
     uiState: HomeUiState,
     onAddTransaction: () -> Unit,
-    onTransfer: () -> Unit,
-    onFilter: () -> Unit,
     onStatisticsClick: () -> Unit,
 ) {
     val transactions = uiState.transactions
-    if (transactions.isEmpty()) {
-        EmptyState(
-            message = "暂无流水，记一笔开始记录吧",
-            actionLabel = "记一笔",
-            onActionClick = onAddTransaction,
-        )
-        return
-    }
-
     var expanded by rememberSaveable { mutableStateOf(false) }
     val displayLimit = 20
+    val hasTransactions = transactions.isNotEmpty()
     val displayedTransactions =
         if (expanded) {
             transactions
@@ -67,20 +60,23 @@ fun homeScreen(
     val showMore = transactions.size > displayedTransactions.size
 
     val listItems =
-        buildList {
-            add(HomeListItem.Overview)
-            add(HomeListItem.Metrics)
-            add(HomeListItem.QuickActions)
-            add(HomeListItem.RecentHeader(showMore = showMore))
-            var lastDate: String? = null
-            displayedTransactions.forEach { transaction ->
-                val currentDate = formatDate(transaction.occurredAt)
-                if (currentDate != lastDate) {
-                    add(HomeListItem.DateHeader(currentDate))
-                    lastDate = currentDate
+        if (hasTransactions) {
+            buildList {
+                add(HomeListItem.Overview)
+                add(HomeListItem.Metrics)
+                add(HomeListItem.RecentHeader(showMore = showMore))
+                var lastDate: String? = null
+                displayedTransactions.forEach { transaction ->
+                    val currentDate = formatDate(transaction.occurredAt)
+                    if (currentDate != lastDate) {
+                        add(HomeListItem.DateHeader(currentDate))
+                        lastDate = currentDate
+                    }
+                    add(HomeListItem.TransactionItem(transaction))
                 }
-                add(HomeListItem.TransactionItem(transaction))
             }
+        } else {
+            emptyList()
         }
 
     val listState = rememberLazyListState()
@@ -113,59 +109,69 @@ fun homeScreen(
                 .fillMaxSize()
                 .padding(24.dp),
     ) {
-        LazyColumn(
-            state = listState,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            itemsIndexed(
-                listItems,
-                key = { index, item -> item.key(index) },
-            ) { _, item ->
-                when (item) {
-                    HomeListItem.Overview -> {
-                        OverviewCard(
-                            summary = uiState.monthSummary,
-                            lastMonthSummary = uiState.lastMonthSummary,
-                            onClick = onStatisticsClick,
-                        )
-                    }
-                    HomeListItem.Metrics -> {
-                        MetricsSection(
-                            todaySummary = uiState.todaySummary,
-                            monthSummary = uiState.monthSummary,
-                        )
-                    }
-                    HomeListItem.QuickActions -> {
-                        QuickActionsSection(
-                            onAddTransaction = onAddTransaction,
-                            onTransfer = onTransfer,
-                            onFilter = onFilter,
-                        )
-                    }
-                    is HomeListItem.RecentHeader -> {
-                        RecentHeader(
-                            showMore = item.showMore,
-                            onShowMore = { expanded = true },
-                        )
-                    }
-                    is HomeListItem.DateHeader -> {
-                        ListHeader(title = item.date)
-                    }
-                    is HomeListItem.TransactionItem -> {
-                        TransactionListItem(
-                            transaction = item.transaction,
-                            accountMap = uiState.accountMap,
-                            categoryMap = uiState.categoryMap,
-                        )
+        if (hasTransactions) {
+            LazyColumn(
+                state = listState,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                itemsIndexed(
+                    listItems,
+                    key = { index, item -> item.key(index) },
+                ) { _, item ->
+                    when (item) {
+                        HomeListItem.Overview -> {
+                            OverviewCard(
+                                summary = uiState.monthSummary,
+                                lastMonthSummary = uiState.lastMonthSummary,
+                                onClick = onStatisticsClick,
+                            )
+                        }
+                        HomeListItem.Metrics -> {
+                            MetricsSection(
+                                todaySummary = uiState.todaySummary,
+                                monthSummary = uiState.monthSummary,
+                            )
+                        }
+                        is HomeListItem.RecentHeader -> {
+                            RecentHeader(
+                                showMore = item.showMore,
+                                onShowMore = { expanded = true },
+                            )
+                        }
+                        is HomeListItem.DateHeader -> {
+                            ListHeader(title = item.date)
+                        }
+                        is HomeListItem.TransactionItem -> {
+                            TransactionListItem(
+                                transaction = item.transaction,
+                                accountMap = uiState.accountMap,
+                                categoryMap = uiState.categoryMap,
+                            )
+                        }
                     }
                 }
             }
+            val headerDate = stickyDate
+            if (headerDate != null) {
+                ListHeader(
+                    title = headerDate,
+                    modifier = Modifier.align(Alignment.TopStart),
+                )
+            }
+        } else {
+            EmptyState(
+                message = "暂无流水，记一笔开始记录吧",
+                actionLabel = "记一笔",
+                onActionClick = onAddTransaction,
+            )
         }
-        val headerDate = stickyDate
-        if (headerDate != null) {
-            ListHeader(
-                title = headerDate,
-                modifier = Modifier.align(Alignment.TopStart),
+        FloatingActionButton(
+            onClick = onAddTransaction,
+            modifier = Modifier.align(Alignment.BottomEnd),
+        ) {
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = "记一笔",
             )
         }
     }
@@ -177,8 +183,6 @@ fun homeScreenPreview() {
     homeScreen(
         uiState = HomeUiState(),
         onAddTransaction = {},
-        onTransfer = {},
-        onFilter = {},
         onStatisticsClick = {},
     )
 }
@@ -187,8 +191,6 @@ private sealed interface HomeListItem {
     data object Overview : HomeListItem
 
     data object Metrics : HomeListItem
-
-    data object QuickActions : HomeListItem
 
     data class RecentHeader(
         val showMore: Boolean,
@@ -207,7 +209,6 @@ private fun HomeListItem.key(index: Int): String =
     when (this) {
         HomeListItem.Overview -> "overview"
         HomeListItem.Metrics -> "metrics"
-        HomeListItem.QuickActions -> "quick-actions"
         is HomeListItem.RecentHeader -> "recent-header"
         is HomeListItem.DateHeader -> "date-$date"
         is HomeListItem.TransactionItem -> transaction.id
@@ -361,44 +362,6 @@ private fun OverviewSummaryItem(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
         )
-    }
-}
-
-@Suppress("ktlint:standard:function-naming")
-@Composable
-private fun QuickActionsSection(
-    onAddTransaction: () -> Unit,
-    onTransfer: () -> Unit,
-    onFilter: () -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(
-            text = "快捷操作",
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            OutlinedButton(
-                onClick = onAddTransaction,
-                modifier = Modifier.weight(1f),
-            ) {
-                Text(text = "记一笔")
-            }
-            OutlinedButton(
-                onClick = onTransfer,
-                modifier = Modifier.weight(1f),
-            ) {
-                Text(text = "转账")
-            }
-            OutlinedButton(
-                onClick = onFilter,
-                modifier = Modifier.weight(1f),
-            ) {
-                Text(text = "筛选")
-            }
-        }
     }
 }
 
