@@ -1,5 +1,6 @@
 package com.countingstar.ui
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -189,6 +190,9 @@ data class AddTransactionUiState(
     val expenseCategories: List<CategoryItem> = emptyList(),
     val incomeCategories: List<CategoryItem> = emptyList(),
     val templates: List<QuickTemplate> = emptyList(),
+    val commonExpenseCategoryIds: List<String> = emptyList(),
+    val commonIncomeCategoryIds: List<String> = emptyList(),
+    val quickAmounts: List<String> = listOf("10", "20", "50", "100", "200", "500"),
     val amountError: String? = null,
     val accountError: String? = null,
     val categoryError: String? = null,
@@ -287,6 +291,10 @@ sealed interface AddTransactionUiEvent {
 
     data class ToAccountSelected(
         val accountId: String?,
+    ) : AddTransactionUiEvent
+
+    data class QuickAmountSelected(
+        val amount: String,
     ) : AddTransactionUiEvent
 
     data class TemplateSelected(
@@ -472,7 +480,35 @@ class AddTransactionViewModel
                                     .distinctBy {
                                         "${it.type}-${it.amountCents}-${it.accountId}-${it.categoryId}-${it.fromAccountId}-${it.toAccountId}"
                                     }.take(5)
-                            updateState { current -> current.copy(templates = templates) }
+                            val commonExpenseCategoryIds =
+                                transactions
+                                    .asSequence()
+                                    .filter { it.type == TransactionType.EXPENSE }
+                                    .mapNotNull { it.categoryId }
+                                    .groupingBy { it }
+                                    .eachCount()
+                                    .toList()
+                                    .sortedByDescending { it.second }
+                                    .map { it.first }
+                                    .take(6)
+                            val commonIncomeCategoryIds =
+                                transactions
+                                    .asSequence()
+                                    .filter { it.type == TransactionType.INCOME }
+                                    .mapNotNull { it.categoryId }
+                                    .groupingBy { it }
+                                    .eachCount()
+                                    .toList()
+                                    .sortedByDescending { it.second }
+                                    .map { it.first }
+                                    .take(6)
+                            updateState { current ->
+                                current.copy(
+                                    templates = templates,
+                                    commonExpenseCategoryIds = commonExpenseCategoryIds,
+                                    commonIncomeCategoryIds = commonIncomeCategoryIds,
+                                )
+                            }
                         }
                 }
             }
@@ -521,6 +557,9 @@ class AddTransactionViewModel
                 }
                 is AddTransactionUiEvent.ToAccountSelected -> {
                     updateState { current -> current.copy(selectedToAccountId = event.accountId) }
+                }
+                is AddTransactionUiEvent.QuickAmountSelected -> {
+                    updateState { current -> current.copy(amount = event.amount) }
                 }
                 is AddTransactionUiEvent.TemplateSelected -> {
                     updateState { current ->
@@ -781,6 +820,68 @@ fun AddTransactionScreen(
                                     uiState.incomeCategories,
                                 ),
                         )
+                    }
+                }
+            }
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = "快捷金额",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                uiState.quickAmounts.forEach { amount ->
+                    OutlinedButton(
+                        onClick = {
+                            viewModel.onEvent(AddTransactionUiEvent.QuickAmountSelected(amount))
+                        },
+                    ) {
+                        Text(text = amount)
+                    }
+                }
+            }
+        }
+        if (uiState.selectedType != RecordType.TRANSFER) {
+            val commonCategories =
+                if (uiState.selectedType == RecordType.INCOME) {
+                    uiState.incomeCategories.filter {
+                        uiState.commonIncomeCategoryIds.contains(it.id)
+                    }
+                } else {
+                    uiState.expenseCategories.filter {
+                        uiState.commonExpenseCategoryIds.contains(it.id)
+                    }
+                }
+            if (commonCategories.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "常用分类",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        commonCategories.forEach { category ->
+                            OutlinedButton(
+                                onClick = {
+                                    viewModel.onEvent(
+                                        AddTransactionUiEvent.CategorySelected(category.id),
+                                    )
+                                },
+                            ) {
+                                Text(text = category.name)
+                            }
+                        }
                     }
                 }
             }
