@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -51,6 +51,7 @@ import com.countingstar.core.ui.component.AmountInput
 import com.countingstar.core.ui.component.CategoryItem
 import com.countingstar.core.ui.component.CategorySelector
 import com.countingstar.core.ui.component.DateTimePicker
+import com.countingstar.core.ui.component.ListHeader
 import com.countingstar.core.ui.component.formatAmount
 import com.countingstar.core.ui.component.formatDate
 import com.countingstar.core.ui.component.formatTime
@@ -453,7 +454,13 @@ fun TransactionListScreen(viewModel: TransactionListViewModel = hiltViewModel())
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        items(transactions, key = { it.id }) { transaction ->
+        itemsIndexed(transactions, key = { _, transaction -> transaction.id }) { index, transaction ->
+            val currentDate = formatDate(transaction.occurredAt)
+            val previousDate =
+                transactions.getOrNull(index - 1)?.let { formatDate(it.occurredAt) }
+            if (currentDate != previousDate) {
+                ListHeader(title = currentDate)
+            }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
