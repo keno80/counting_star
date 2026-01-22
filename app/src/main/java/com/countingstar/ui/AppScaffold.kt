@@ -168,7 +168,9 @@ fun AppNavHost(
         }
 
         composable(TopLevelDestination.TRANSACTIONS.route) {
-            TransactionListScreen()
+            TransactionListScreen(
+                onAddTransaction = { navController.navigate(addTransactionRoute) },
+            )
         }
         composable(TopLevelDestination.STATISTICS.route) {
             EmptyState(message = "统计功能开发中")
@@ -499,14 +501,21 @@ class TransactionListViewModel
 
 @Suppress("ktlint:standard:function-naming")
 @Composable
-fun TransactionListScreen(viewModel: TransactionListViewModel = hiltViewModel()) {
+fun TransactionListScreen(
+    onAddTransaction: () -> Unit,
+    viewModel: TransactionListViewModel = hiltViewModel(),
+) {
     val uiState by viewModel.uiState.collectAsState()
     val transactions = uiState.transactions
     val accountMap = uiState.accountMap
     val categoryMap = uiState.categoryMap
 
     if (transactions.isEmpty()) {
-        EmptyState(message = "暂无流水")
+        EmptyState(
+            message = "暂无流水，点击下方去记一笔",
+            actionLabel = "记一笔",
+            onActionClick = onAddTransaction,
+        )
         return
     }
 
