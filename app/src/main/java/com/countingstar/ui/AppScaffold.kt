@@ -83,6 +83,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
@@ -395,6 +396,8 @@ private fun templateLabel(
 
 data class TransactionListUiState(
     val transactions: List<Transaction> = emptyList(),
+    val accountMap: Map<String, Account> = emptyMap(),
+    val categoryMap: Map<String, Category> = emptyMap(),
 )
 
 private fun transactionTypeLabel(type: TransactionType): String =
@@ -413,12 +416,47 @@ private fun transactionAmountText(transaction: Transaction): String {
     }
 }
 
+private fun transactionDirectionText(
+    transaction: Transaction,
+    accountMap: Map<String, Account>,
+): String {
+    val accountName = { id: String? ->
+        id?.let { accountMap[it]?.name } ?: "未选择"
+    }
+    return when (transaction.type) {
+        TransactionType.TRANSFER ->
+            "${accountName(transaction.fromAccountId)} → ${accountName(transaction.toAccountId)}"
+        TransactionType.INCOME,
+        TransactionType.EXPENSE,
+        -> accountName(transaction.accountId)
+    }
+}
+
+private fun transactionCategoryText(
+    transaction: Transaction,
+    categoryMap: Map<String, Category>,
+): String = transaction.categoryId?.let { categoryMap[it]?.name } ?: "未选择"
+
+private fun noteSummary(
+    note: String,
+    limit: Int = 20,
+): String {
+    val content = note.trim()
+    return if (content.length > limit) {
+        "${content.take(limit)}…"
+    } else {
+        content
+    }
+}
+
 @HiltViewModel
 class TransactionListViewModel
     @Inject
     constructor(
         private val initializeDefaultDataUseCase: InitializeDefaultDataUseCase,
         private val queryTransactionsUseCase: QueryTransactionsUseCase,
+        private val accountRepository: AccountRepository,
+        private val categoryRepository: CategoryRepository,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(TransactionListUiState())
         val uiState: StateFlow<TransactionListUiState> = _uiState.asStateFlow()
@@ -426,14 +464,34 @@ class TransactionListViewModel
         init {
             viewModelScope.launch {
                 val ledgerId = initializeDefaultDataUseCase().ledgerId
-                queryTransactionsUseCase(
-                    TransactionQueryParams(
-                        ledgerId = ledgerId,
-                        sortField = TransactionSortField.OCCURRED_AT,
-                        sortDirection = SortDirection.DESC,
-                    ),
-                ).collectLatest { transactions ->
-                    _uiState.value = TransactionListUiState(transactions = transactions)
+                launch {
+                    accountRepository.observeAccountsByLedger(ledgerId).collectLatest { accounts ->
+                        val map = accounts.associateBy { it.id }
+                        _uiState.update { current -> current.copy(accountMap = map) }
+                    }
+                }
+                launch {
+                    combine(
+                        categoryRepository.observeCategories(ledgerId, CategoryType.INCOME),
+                        categoryRepository.observeCategories(ledgerId, CategoryType.EXPENSE),
+                    ) { incomeCategories, expenseCategories ->
+                        (incomeCategories + expenseCategories).associateBy { it.id }
+                    }.collectLatest { categoryMap ->
+                        _uiState.update { current -> current.copy(categoryMap = categoryMap) }
+                    }
+                }
+                launch {
+                    queryTransactionsUseCase(
+                        TransactionQueryParams(
+                            ledgerId = ledgerId,
+                            sortField = TransactionSortField.OCCURRED_AT,
+                            sortDirection = SortDirection.DESC,
+                        ),
+                    ).collectLatest { transactions ->
+                        _uiState.update { current ->
+                            current.copy(transactions = transactions)
+                        }
+                    }
                 }
             }
         }
@@ -444,6 +502,8 @@ class TransactionListViewModel
 fun TransactionListScreen(viewModel: TransactionListViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsState()
     val transactions = uiState.transactions
+    val accountMap = uiState.accountMap
+    val categoryMap = uiState.categoryMap
 
     if (transactions.isEmpty()) {
         EmptyState(message = "暂无流水")
@@ -470,17 +530,26 @@ fun TransactionListScreen(viewModel: TransactionListViewModel = hiltViewModel())
                     Text(text = transactionAmountText(transaction))
                 }
                 Text(
-                    text = "${formatDate(transaction.occurredAt)} ${formatTime(transaction.occurredAt)}",
+                    text =
+                        if (transaction.type == TransactionType.TRANSFER) {
+                            "转账 · ${transactionDirectionText(transaction, accountMap)}"
+                        } else {
+                            "${transactionCategoryText(transaction, categoryMap)} · ${transactionDirectionText(transaction, accountMap)}"
+                        },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                if (transaction.note.isNotBlank()) {
-                    Text(
-                        text = transaction.note,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                val note = transaction.note
+                Text(
+                    text =
+                        if (note.isNotBlank()) {
+                            "${formatTime(transaction.occurredAt)} · ${noteSummary(note)}"
+                        } else {
+                            formatTime(transaction.occurredAt)
+                        },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
