@@ -17,6 +17,7 @@ import com.countingstar.domain.Transaction
 import com.countingstar.domain.TransactionQueryParams
 import com.countingstar.domain.TransactionSortField
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +25,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -45,8 +49,10 @@ data class HomeUiState(
     val accountMap: Map<String, Account> = emptyMap(),
     val categoryMap: Map<String, Category> = emptyMap(),
     val isRefreshing: Boolean = false,
+    val searchQuery: String = "",
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class HomeViewModel
     @Inject
@@ -59,6 +65,7 @@ class HomeViewModel
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(HomeUiState())
         val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+        private val searchQuery = MutableStateFlow("")
         private var refreshJob: Job? = null
 
         init {
@@ -89,17 +96,23 @@ class HomeViewModel
                     }
                 }
                 launch {
-                    queryTransactionsUseCase(
-                        TransactionQueryParams(
-                            ledgerId = ledgerId,
-                            sortField = TransactionSortField.OCCURRED_AT,
-                            sortDirection = SortDirection.DESC,
-                        ),
-                    ).collectLatest { transactions ->
-                        _uiState.update { current ->
-                            current.copy(transactions = transactions)
+                    searchQuery
+                        .map { it.trim() }
+                        .distinctUntilChanged()
+                        .flatMapLatest { keyword ->
+                            queryTransactionsUseCase(
+                                TransactionQueryParams(
+                                    ledgerId = ledgerId,
+                                    keyword = keyword.takeIf { it.isNotEmpty() },
+                                    sortField = TransactionSortField.OCCURRED_AT,
+                                    sortDirection = SortDirection.DESC,
+                                ),
+                            )
+                        }.collectLatest { transactions ->
+                            _uiState.update { current ->
+                                current.copy(transactions = transactions)
+                            }
                         }
-                    }
                 }
                 launch {
                     getStatisticsSummaryUseCase(
@@ -151,6 +164,11 @@ class HomeViewModel
                     delay(500)
                     _uiState.update { current -> current.copy(isRefreshing = false) }
                 }
+        }
+
+        fun updateSearchQuery(query: String) {
+            _uiState.update { current -> current.copy(searchQuery = query) }
+            searchQuery.value = query
         }
     }
 

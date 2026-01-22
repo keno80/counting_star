@@ -66,10 +66,10 @@ fun homeScreen(
     val showMore = transactions.size > displayedTransactions.size
 
     val listItems =
-        if (hasTransactions) {
-            buildList {
-                add(HomeListItem.Overview)
-                add(HomeListItem.Metrics)
+        buildList {
+            add(HomeListItem.Overview)
+            add(HomeListItem.Metrics)
+            if (hasTransactions) {
                 add(HomeListItem.RecentHeader(showMore = showMore))
                 var lastDate: String? = null
                 displayedTransactions.forEach { transaction ->
@@ -80,9 +80,9 @@ fun homeScreen(
                     }
                     add(HomeListItem.TransactionItem(transaction))
                 }
+            } else {
+                add(HomeListItem.EmptyState)
             }
-        } else {
-            emptyList()
         }
 
     val listState = rememberLazyListState()
@@ -121,60 +121,59 @@ fun homeScreen(
                 .pullRefresh(pullRefreshState)
                 .padding(24.dp),
     ) {
-        if (hasTransactions) {
-            LazyColumn(
-                state = listState,
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                itemsIndexed(
-                    listItems,
-                    key = { index, item -> item.key(index) },
-                ) { _, item ->
-                    when (item) {
-                        HomeListItem.Overview -> {
-                            OverviewCard(
-                                summary = uiState.monthSummary,
-                                lastMonthSummary = uiState.lastMonthSummary,
-                                onClick = onStatisticsClick,
-                            )
-                        }
-                        HomeListItem.Metrics -> {
-                            MetricsSection(
-                                todaySummary = uiState.todaySummary,
-                                monthSummary = uiState.monthSummary,
-                            )
-                        }
-                        is HomeListItem.RecentHeader -> {
-                            RecentHeader(
-                                showMore = item.showMore,
-                                onShowMore = { expanded = true },
-                            )
-                        }
-                        is HomeListItem.DateHeader -> {
-                            ListHeader(title = item.date)
-                        }
-                        is HomeListItem.TransactionItem -> {
-                            TransactionListItem(
-                                transaction = item.transaction,
-                                accountMap = uiState.accountMap,
-                                categoryMap = uiState.categoryMap,
-                            )
-                        }
+        LazyColumn(
+            state = listState,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            itemsIndexed(
+                listItems,
+                key = { index, item -> item.key(index) },
+            ) { _, item ->
+                when (item) {
+                    HomeListItem.Overview -> {
+                        OverviewCard(
+                            summary = uiState.monthSummary,
+                            lastMonthSummary = uiState.lastMonthSummary,
+                            onClick = onStatisticsClick,
+                        )
+                    }
+                    HomeListItem.Metrics -> {
+                        MetricsSection(
+                            todaySummary = uiState.todaySummary,
+                            monthSummary = uiState.monthSummary,
+                        )
+                    }
+                    is HomeListItem.RecentHeader -> {
+                        RecentHeader(
+                            showMore = item.showMore,
+                            onShowMore = { expanded = true },
+                        )
+                    }
+                    is HomeListItem.DateHeader -> {
+                        ListHeader(title = item.date)
+                    }
+                    HomeListItem.EmptyState -> {
+                        EmptyState(
+                            message = "暂无流水，记一笔开始记录吧",
+                            actionLabel = "记一笔",
+                            onActionClick = onAddTransaction,
+                        )
+                    }
+                    is HomeListItem.TransactionItem -> {
+                        TransactionListItem(
+                            transaction = item.transaction,
+                            accountMap = uiState.accountMap,
+                            categoryMap = uiState.categoryMap,
+                        )
                     }
                 }
             }
-            val headerDate = stickyDate
-            if (headerDate != null) {
-                ListHeader(
-                    title = headerDate,
-                    modifier = Modifier.align(Alignment.TopStart),
-                )
-            }
-        } else {
-            EmptyState(
-                message = "暂无流水，记一笔开始记录吧",
-                actionLabel = "记一笔",
-                onActionClick = onAddTransaction,
+        }
+        val headerDate = stickyDate
+        if (headerDate != null) {
+            ListHeader(
+                title = headerDate,
+                modifier = Modifier.align(Alignment.TopStart),
             )
         }
         FloatingActionButton(
@@ -214,6 +213,8 @@ private sealed interface HomeListItem {
         val showMore: Boolean,
     ) : HomeListItem
 
+    data object EmptyState : HomeListItem
+
     data class DateHeader(
         val date: String,
     ) : HomeListItem
@@ -228,6 +229,7 @@ private fun HomeListItem.key(index: Int): String =
         HomeListItem.Overview -> "overview"
         HomeListItem.Metrics -> "metrics"
         is HomeListItem.RecentHeader -> "recent-header"
+        HomeListItem.EmptyState -> "empty"
         is HomeListItem.DateHeader -> "date-$date"
         is HomeListItem.TransactionItem -> transaction.id
     } + "-$index"

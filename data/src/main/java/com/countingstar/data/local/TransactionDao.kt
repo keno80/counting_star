@@ -28,6 +28,7 @@ interface TransactionDao {
     @Query(
         "SELECT DISTINCT t.* FROM `transaction` t " +
             "LEFT JOIN transaction_tag tt ON t.id = tt.transactionId " +
+            "LEFT JOIN tag tg ON tg.id = tt.tagId AND tg.ledgerId = t.ledgerId " +
             "LEFT JOIN merchant m ON t.merchantId = m.id AND m.ledgerId = t.ledgerId " +
             "WHERE t.ledgerId = :ledgerId " +
             "AND (:startTime IS NULL OR t.occurredAt >= :startTime) " +
@@ -40,7 +41,8 @@ interface TransactionDao {
             "AND (:merchantId IS NULL OR t.merchantId = :merchantId) " +
             "AND (:tagId IS NULL OR tt.tagId = :tagId) " +
             "AND (:keyword IS NULL OR t.note LIKE '%' || :keyword || '%' " +
-            "OR m.name LIKE '%' || :keyword || '%' OR m.alias LIKE '%' || :keyword || '%') " +
+            "OR m.name LIKE '%' || :keyword || '%' OR m.alias LIKE '%' || :keyword || '%'" +
+            " OR tg.name LIKE '%' || :keyword || '%') " +
             "ORDER BY t.occurredAt DESC",
     )
     fun observeTransactionsByFilters(
@@ -59,6 +61,7 @@ interface TransactionDao {
     @Query(
         "SELECT DISTINCT t.* FROM `transaction` t " +
             "LEFT JOIN transaction_tag tt ON t.id = tt.transactionId " +
+            "LEFT JOIN tag tg ON tg.id = tt.tagId AND tg.ledgerId = t.ledgerId " +
             "LEFT JOIN merchant m ON t.merchantId = m.id AND m.ledgerId = t.ledgerId " +
             "WHERE t.ledgerId = :ledgerId " +
             "AND (:startTime IS NULL OR t.occurredAt >= :startTime) " +
@@ -71,7 +74,8 @@ interface TransactionDao {
             "AND (:merchantId IS NULL OR t.merchantId = :merchantId) " +
             "AND (:tagId IS NULL OR tt.tagId = :tagId) " +
             "AND (:keyword IS NULL OR t.note LIKE '%' || :keyword || '%' " +
-            "OR m.name LIKE '%' || :keyword || '%' OR m.alias LIKE '%' || :keyword || '%') " +
+            "OR m.name LIKE '%' || :keyword || '%' OR m.alias LIKE '%' || :keyword || '%'" +
+            " OR tg.name LIKE '%' || :keyword || '%') " +
             "ORDER BY t.occurredAt DESC",
     )
     fun pagingTransactionsByFilters(

@@ -12,7 +12,10 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -79,6 +82,7 @@ import com.countingstar.domain.TransactionRepository
 import com.countingstar.domain.TransactionSortField
 import com.countingstar.domain.TransactionType
 import com.countingstar.feature.home.HomeDestination
+import com.countingstar.feature.home.HomeViewModel
 import com.countingstar.feature.home.homeRoute
 import com.countingstar.navigation.TopLevelDestination
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -95,39 +99,53 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import javax.inject.Inject
 
+private const val FILTER_ROUTE = "transaction-filter"
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("ktlint:standard:function-naming")
 @Composable
 fun CountingStarApp() {
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
-    val coroutineScope = rememberCoroutineScope()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
-    val showFilter = currentDestination?.route == HomeDestination.ROUTE
+    val currentRoute = currentDestination?.route
+    val showHomeTopBar = currentRoute == HomeDestination.ROUTE
+    val showFilterTopBar = currentRoute == FILTER_ROUTE
 
     CompositionLocalProvider(LocalSnackbarHostState provides snackbarHostState) {
         Scaffold(
             snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
-                if (showFilter) {
-                    TopAppBar(
-                        title = { Text("首页") },
-                        actions = {
-                            IconButton(
-                                onClick = {
-                                    coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("筛选功能开发中")
-                                    }
-                                },
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.FilterList,
-                                    contentDescription = "筛选",
-                                )
-                            }
-                        },
-                    )
+                when {
+                    showHomeTopBar -> {
+                        TopAppBar(
+                            title = { Text("首页") },
+                            actions = {
+                                IconButton(
+                                    onClick = { navController.navigate(FILTER_ROUTE) },
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.FilterList,
+                                        contentDescription = "筛选",
+                                    )
+                                }
+                            },
+                        )
+                    }
+                    showFilterTopBar -> {
+                        TopAppBar(
+                            title = { Text("筛选") },
+                            navigationIcon = {
+                                IconButton(onClick = { navController.popBackStack() }) {
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowBack,
+                                        contentDescription = "返回",
+                                    )
+                                }
+                            },
+                        )
+                    }
                 }
             },
             bottomBar = {
@@ -201,12 +219,68 @@ fun AppNavHost(
             )
         }
 
+        composable(FILTER_ROUTE) {
+            val parentEntry =
+                remember(it) {
+                    navController.getBackStackEntry(HomeDestination.ROUTE)
+                }
+            val homeViewModel: HomeViewModel = hiltViewModel(parentEntry)
+            FilterScreen(viewModel = homeViewModel)
+        }
+
         composable(TopLevelDestination.STATISTICS.route) {
             EmptyState(message = "统计功能开发中")
         }
         composable(TopLevelDestination.SETTINGS.route) {
             EmptyState(message = "设置功能开发中")
         }
+    }
+}
+
+@Suppress("ktlint:standard:function-naming")
+@Composable
+fun FilterScreen(viewModel: HomeViewModel = hiltViewModel()) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text(
+            text = "关键词搜索",
+            style = MaterialTheme.typography.titleMedium,
+        )
+        OutlinedTextField(
+            value = uiState.searchQuery,
+            onValueChange = viewModel::updateSearchQuery,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text(text = "搜索备注/商家/标签") },
+            singleLine = true,
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "搜索",
+                )
+            },
+            trailingIcon =
+                if (uiState.searchQuery.isNotBlank()) {
+                    {
+                        IconButton(
+                            onClick = { viewModel.updateSearchQuery("") },
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "清空",
+                            )
+                        }
+                    }
+                } else {
+                    null
+                },
+        )
     }
 }
 
