@@ -50,6 +50,8 @@ data class HomeUiState(
     val categoryMap: Map<String, Category> = emptyMap(),
     val isRefreshing: Boolean = false,
     val searchQuery: String = "",
+    val startDate: Long? = null,
+    val endDate: Long? = null,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -66,6 +68,8 @@ class HomeViewModel
         private val _uiState = MutableStateFlow(HomeUiState())
         val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
         private val searchQuery = MutableStateFlow("")
+        private val startDate = MutableStateFlow<Long?>(null)
+        private val endDate = MutableStateFlow<Long?>(null)
         private var refreshJob: Job? = null
 
         init {
@@ -96,14 +100,23 @@ class HomeViewModel
                     }
                 }
                 launch {
-                    searchQuery
-                        .map { it.trim() }
-                        .distinctUntilChanged()
-                        .flatMapLatest { keyword ->
+                    combine(
+                        searchQuery
+                            .map { it.trim() }
+                            .map { it.takeIf(String::isNotEmpty) }
+                            .distinctUntilChanged(),
+                        startDate,
+                        endDate,
+                    ) { keyword, start, end ->
+                        TransactionFilter(keyword = keyword, startTime = start, endTime = end)
+                    }.distinctUntilChanged()
+                        .flatMapLatest { filter ->
                             queryTransactionsUseCase(
                                 TransactionQueryParams(
                                     ledgerId = ledgerId,
-                                    keyword = keyword.takeIf { it.isNotEmpty() },
+                                    startTime = filter.startTime,
+                                    endTime = filter.endTime,
+                                    keyword = filter.keyword,
                                     sortField = TransactionSortField.OCCURRED_AT,
                                     sortDirection = SortDirection.DESC,
                                 ),
@@ -170,11 +183,59 @@ class HomeViewModel
             _uiState.update { current -> current.copy(searchQuery = query) }
             searchQuery.value = query
         }
+
+        fun updateStartDate(start: Long) {
+            val currentEnd = endDate.value
+            val normalizedEnd =
+                if (currentEnd != null && currentEnd < start) {
+                    start
+                } else {
+                    currentEnd
+                }
+            _uiState.update { current ->
+                current.copy(startDate = start, endDate = normalizedEnd)
+            }
+            startDate.value = start
+            if (normalizedEnd != currentEnd) {
+                endDate.value = normalizedEnd
+            }
+        }
+
+        fun updateEndDate(end: Long) {
+            val currentStart = startDate.value
+            val normalizedStart =
+                if (currentStart != null && end < currentStart) {
+                    end
+                } else {
+                    currentStart
+                }
+            _uiState.update { current ->
+                current.copy(startDate = normalizedStart, endDate = end)
+            }
+            endDate.value = end
+            if (normalizedStart != currentStart) {
+                startDate.value = normalizedStart
+            }
+        }
+
+        fun clearDateRange() {
+            _uiState.update { current ->
+                current.copy(startDate = null, endDate = null)
+            }
+            startDate.value = null
+            endDate.value = null
+        }
     }
 
 private data class TimeRange(
     val start: Long,
     val end: Long,
+)
+
+private data class TransactionFilter(
+    val keyword: String?,
+    val startTime: Long?,
+    val endTime: Long?,
 )
 
 private fun StatisticsSummary.toUi(): HomeSummaryUi =

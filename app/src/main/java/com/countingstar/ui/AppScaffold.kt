@@ -17,6 +17,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -31,14 +33,18 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -97,6 +103,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.time.Instant
+import java.time.ZoneId
 import javax.inject.Inject
 
 private const val FILTER_ROUTE = "transaction-filter"
@@ -241,6 +249,47 @@ fun AppNavHost(
 @Composable
 fun FilterScreen(viewModel: HomeViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsState()
+    var datePickerTarget by remember { mutableStateOf<DatePickerTarget?>(null) }
+    val startDate = uiState.startDate
+    val endDate = uiState.endDate
+
+    if (datePickerTarget != null) {
+        val initialDate = startDate ?: endDate ?: System.currentTimeMillis()
+        val datePickerState =
+            rememberDatePickerState(
+                initialSelectedDateMillis = initialDate,
+            )
+        DatePickerDialog(
+            onDismissRequest = { datePickerTarget = null },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let { selected ->
+                            when (datePickerTarget) {
+                                DatePickerTarget.START ->
+                                    viewModel.updateStartDate(startOfDayMillis(selected))
+                                DatePickerTarget.END ->
+                                    viewModel.updateEndDate(endOfDayMillis(selected))
+                                null -> Unit
+                            }
+                        }
+                        datePickerTarget = null
+                    },
+                ) {
+                    Text("确定")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { datePickerTarget = null },
+                ) {
+                    Text("取消")
+                }
+            },
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
 
     Column(
         modifier =
@@ -249,6 +298,27 @@ fun FilterScreen(viewModel: HomeViewModel = hiltViewModel()) {
                 .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        Text(
+            text = "日期范围",
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(
+                onClick = { datePickerTarget = DatePickerTarget.START },
+            ) {
+                Text(text = startDate?.let { formatDate(it) } ?: "开始日期")
+            }
+            OutlinedButton(
+                onClick = { datePickerTarget = DatePickerTarget.END },
+            ) {
+                Text(text = endDate?.let { formatDate(it) } ?: "结束日期")
+            }
+        }
+        if (startDate != null || endDate != null) {
+            TextButton(onClick = viewModel::clearDateRange) {
+                Text("清空日期")
+            }
+        }
         Text(
             text = "关键词搜索",
             style = MaterialTheme.typography.titleMedium,
@@ -282,6 +352,31 @@ fun FilterScreen(viewModel: HomeViewModel = hiltViewModel()) {
                 },
         )
     }
+}
+
+private enum class DatePickerTarget {
+    START,
+    END,
+}
+
+private fun startOfDayMillis(dateMillis: Long): Long {
+    val zoneId = ZoneId.systemDefault()
+    val date = Instant.ofEpochMilli(dateMillis).atZone(zoneId).toLocalDate()
+    return date.atStartOfDay(zoneId).toInstant().toEpochMilli()
+}
+
+private fun endOfDayMillis(dateMillis: Long): Long {
+    val zoneId = ZoneId.systemDefault()
+    val date =
+        Instant
+            .ofEpochMilli(dateMillis)
+            .atZone(zoneId)
+            .toLocalDate()
+    return date
+        .plusDays(1)
+        .atStartOfDay(zoneId)
+        .toInstant()
+        .toEpochMilli() - 1
 }
 
 enum class RecordType(
