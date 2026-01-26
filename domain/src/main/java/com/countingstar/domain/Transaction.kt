@@ -43,7 +43,7 @@ interface TransactionRepository {
         endTime: Long? = null,
         minAmount: Long? = null,
         maxAmount: Long? = null,
-        accountId: String? = null,
+        accountIds: List<String>? = null,
         categoryId: String? = null,
         tagId: String? = null,
         merchantId: String? = null,

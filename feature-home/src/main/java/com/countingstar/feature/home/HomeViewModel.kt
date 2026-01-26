@@ -55,6 +55,7 @@ data class HomeUiState(
     val endDate: Long? = null,
     val minAmountInput: String = "",
     val maxAmountInput: String = "",
+    val selectedAccountIds: List<String> = emptyList(),
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -75,6 +76,7 @@ class HomeViewModel
         private val endDate = MutableStateFlow<Long?>(null)
         private val minAmountInput = MutableStateFlow("")
         private val maxAmountInput = MutableStateFlow("")
+        private val selectedAccountIds = MutableStateFlow<List<String>>(emptyList())
         private var refreshJob: Job? = null
 
         init {
@@ -105,6 +107,18 @@ class HomeViewModel
                     }
                 }
                 launch {
+                    val amountRangeFlow =
+                        combine(
+                            minAmountInput,
+                            maxAmountInput,
+                        ) { minInput, maxInput ->
+                            val minCents = amountInputToCents(minInput)
+                            val maxCents = amountInputToCents(maxInput)
+                            normalizeAmountRange(
+                                minCents,
+                                maxCents,
+                            )
+                        }
                     combine(
                         searchQuery
                             .map { it.trim() }
@@ -112,22 +126,16 @@ class HomeViewModel
                             .distinctUntilChanged(),
                         startDate,
                         endDate,
-                        minAmountInput,
-                        maxAmountInput,
-                    ) { keyword, start, end, minInput, maxInput ->
-                        val minCents = amountInputToCents(minInput)
-                        val maxCents = amountInputToCents(maxInput)
-                        val amountRange =
-                            normalizeAmountRange(
-                                minCents,
-                                maxCents,
-                            )
+                        amountRangeFlow,
+                        selectedAccountIds,
+                    ) { keyword, start, end, amountRange, accounts ->
                         TransactionFilter(
                             keyword = keyword,
                             startTime = start,
                             endTime = end,
                             minAmount = amountRange.minAmount,
                             maxAmount = amountRange.maxAmount,
+                            accountIds = accounts.takeIf { it.isNotEmpty() },
                         )
                     }.distinctUntilChanged()
                         .flatMapLatest { filter ->
@@ -138,6 +146,7 @@ class HomeViewModel
                                     endTime = filter.endTime,
                                     minAmount = filter.minAmount,
                                     maxAmount = filter.maxAmount,
+                                    accountIds = filter.accountIds,
                                     keyword = filter.keyword,
                                     sortField = TransactionSortField.OCCURRED_AT,
                                     sortDirection = SortDirection.DESC,
@@ -265,6 +274,23 @@ class HomeViewModel
             minAmountInput.value = ""
             maxAmountInput.value = ""
         }
+
+        fun toggleAccountSelection(accountId: String) {
+            val current = selectedAccountIds.value
+            val updated =
+                if (current.contains(accountId)) {
+                    current.filterNot { it == accountId }
+                } else {
+                    current + accountId
+                }
+            _uiState.update { state -> state.copy(selectedAccountIds = updated) }
+            selectedAccountIds.value = updated
+        }
+
+        fun clearAccountSelection() {
+            _uiState.update { state -> state.copy(selectedAccountIds = emptyList()) }
+            selectedAccountIds.value = emptyList()
+        }
     }
 
 private data class TimeRange(
@@ -278,6 +304,7 @@ private data class TransactionFilter(
     val endTime: Long?,
     val minAmount: Long?,
     val maxAmount: Long?,
+    val accountIds: List<String>?,
 )
 
 private data class AmountRange(

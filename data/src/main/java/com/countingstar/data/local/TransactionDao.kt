@@ -35,8 +35,8 @@ interface TransactionDao {
             "AND (:endTime IS NULL OR t.occurredAt <= :endTime) " +
             "AND (:minAmount IS NULL OR t.amount >= :minAmount) " +
             "AND (:maxAmount IS NULL OR t.amount <= :maxAmount) " +
-            "AND (:accountId IS NULL OR t.accountId = :accountId " +
-            "OR t.fromAccountId = :accountId OR t.toAccountId = :accountId) " +
+            "AND (:hasAccountIds = 0 OR t.accountId IN (:accountIds) " +
+            "OR t.fromAccountId IN (:accountIds) OR t.toAccountId IN (:accountIds)) " +
             "AND (:categoryId IS NULL OR t.categoryId = :categoryId) " +
             "AND (:merchantId IS NULL OR t.merchantId = :merchantId) " +
             "AND (:tagId IS NULL OR tt.tagId = :tagId) " +
@@ -51,7 +51,8 @@ interface TransactionDao {
         endTime: Long? = null,
         minAmount: Long? = null,
         maxAmount: Long? = null,
-        accountId: String? = null,
+        accountIds: List<String>? = null,
+        hasAccountIds: Int = if (accountIds.isNullOrEmpty()) 0 else 1,
         categoryId: String? = null,
         tagId: String? = null,
         merchantId: String? = null,
@@ -68,8 +69,8 @@ interface TransactionDao {
             "AND (:endTime IS NULL OR t.occurredAt <= :endTime) " +
             "AND (:minAmount IS NULL OR t.amount >= :minAmount) " +
             "AND (:maxAmount IS NULL OR t.amount <= :maxAmount) " +
-            "AND (:accountId IS NULL OR t.accountId = :accountId " +
-            "OR t.fromAccountId = :accountId OR t.toAccountId = :accountId) " +
+            "AND (:hasAccountIds = 0 OR t.accountId IN (:accountIds) " +
+            "OR t.fromAccountId IN (:accountIds) OR t.toAccountId IN (:accountIds)) " +
             "AND (:categoryId IS NULL OR t.categoryId = :categoryId) " +
             "AND (:merchantId IS NULL OR t.merchantId = :merchantId) " +
             "AND (:tagId IS NULL OR tt.tagId = :tagId) " +
@@ -84,7 +85,8 @@ interface TransactionDao {
         endTime: Long? = null,
         minAmount: Long? = null,
         maxAmount: Long? = null,
-        accountId: String? = null,
+        accountIds: List<String>? = null,
+        hasAccountIds: Int = if (accountIds.isNullOrEmpty()) 0 else 1,
         categoryId: String? = null,
         tagId: String? = null,
         merchantId: String? = null,

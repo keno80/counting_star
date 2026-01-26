@@ -3,6 +3,8 @@ package com.countingstar.ui
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -246,6 +248,7 @@ fun AppNavHost(
 }
 
 @Suppress("ktlint:standard:function-naming")
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FilterScreen(viewModel: HomeViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsState()
@@ -254,6 +257,11 @@ fun FilterScreen(viewModel: HomeViewModel = hiltViewModel()) {
     val endDate = uiState.endDate
     val minAmountInput = uiState.minAmountInput
     val maxAmountInput = uiState.maxAmountInput
+    val selectedAccountIds = uiState.selectedAccountIds
+    val accounts =
+        remember(uiState.accountMap) {
+            uiState.accountMap.values.sortedBy { it.name }
+        }
 
     if (datePickerTarget != null) {
         val initialDate = startDate ?: endDate ?: System.currentTimeMillis()
@@ -319,6 +327,28 @@ fun FilterScreen(viewModel: HomeViewModel = hiltViewModel()) {
         if (startDate != null || endDate != null) {
             TextButton(onClick = viewModel::clearDateRange) {
                 Text("清空日期")
+            }
+        }
+        Text(
+            text = "账户筛选",
+            style = MaterialTheme.typography.titleMedium,
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            accounts.forEach { account ->
+                val selected = selectedAccountIds.contains(account.id)
+                FilterChip(
+                    selected = selected,
+                    onClick = { viewModel.toggleAccountSelection(account.id) },
+                    label = { Text(account.name) },
+                )
+            }
+        }
+        if (selectedAccountIds.isNotEmpty()) {
+            TextButton(onClick = viewModel::clearAccountSelection) {
+                Text("清空账户")
             }
         }
         Text(
