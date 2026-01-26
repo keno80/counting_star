@@ -37,7 +37,8 @@ interface TransactionDao {
             "AND (:maxAmount IS NULL OR t.amount <= :maxAmount) " +
             "AND (:hasAccountIds = 0 OR t.accountId IN (:accountIds) " +
             "OR t.fromAccountId IN (:accountIds) OR t.toAccountId IN (:accountIds)) " +
-            "AND (:categoryId IS NULL OR t.categoryId = :categoryId) " +
+            "AND (:categoryId IS NULL OR t.categoryId = :categoryId " +
+            "OR t.categoryId IN (SELECT id FROM category WHERE parentId = :categoryId AND ledgerId = :ledgerId)) " +
             "AND (:merchantId IS NULL OR t.merchantId = :merchantId) " +
             "AND (:tagId IS NULL OR tt.tagId = :tagId) " +
             "AND (:keyword IS NULL OR t.note LIKE '%' || :keyword || '%' " +
@@ -71,7 +72,8 @@ interface TransactionDao {
             "AND (:maxAmount IS NULL OR t.amount <= :maxAmount) " +
             "AND (:hasAccountIds = 0 OR t.accountId IN (:accountIds) " +
             "OR t.fromAccountId IN (:accountIds) OR t.toAccountId IN (:accountIds)) " +
-            "AND (:categoryId IS NULL OR t.categoryId = :categoryId) " +
+            "AND (:categoryId IS NULL OR t.categoryId = :categoryId " +
+            "OR t.categoryId IN (SELECT id FROM category WHERE parentId = :categoryId AND ledgerId = :ledgerId)) " +
             "AND (:merchantId IS NULL OR t.merchantId = :merchantId) " +
             "AND (:tagId IS NULL OR tt.tagId = :tagId) " +
             "AND (:keyword IS NULL OR t.note LIKE '%' || :keyword || '%' " +

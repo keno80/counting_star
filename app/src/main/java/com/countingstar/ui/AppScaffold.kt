@@ -258,9 +258,16 @@ fun FilterScreen(viewModel: HomeViewModel = hiltViewModel()) {
     val minAmountInput = uiState.minAmountInput
     val maxAmountInput = uiState.maxAmountInput
     val selectedAccountIds = uiState.selectedAccountIds
+    val selectedCategoryId = uiState.selectedCategoryId
     val accounts =
         remember(uiState.accountMap) {
             uiState.accountMap.values.sortedBy { it.name }
+        }
+    val categories =
+        remember(uiState.categoryMap) {
+            uiState.categoryMap.values
+                .sortedBy { it.name }
+                .map { it.toItem() }
         }
 
     if (datePickerTarget != null) {
@@ -349,6 +356,22 @@ fun FilterScreen(viewModel: HomeViewModel = hiltViewModel()) {
         if (selectedAccountIds.isNotEmpty()) {
             TextButton(onClick = viewModel::clearAccountSelection) {
                 Text("清空账户")
+            }
+        }
+        Text(
+            text = "分类筛选",
+            style = MaterialTheme.typography.titleMedium,
+        )
+        CategorySelector(
+            categories = categories,
+            selectedCategoryId = selectedCategoryId,
+            onCategorySelected = viewModel::updateSelectedCategoryId,
+            modifier = Modifier.fillMaxWidth(),
+            label = "分类筛选",
+        )
+        if (selectedCategoryId != null) {
+            TextButton(onClick = viewModel::clearCategorySelection) {
+                Text("清空分类")
             }
         }
         Text(

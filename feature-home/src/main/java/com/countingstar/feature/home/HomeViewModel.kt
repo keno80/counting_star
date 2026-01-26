@@ -56,6 +56,7 @@ data class HomeUiState(
     val minAmountInput: String = "",
     val maxAmountInput: String = "",
     val selectedAccountIds: List<String> = emptyList(),
+    val selectedCategoryId: String? = null,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -77,6 +78,7 @@ class HomeViewModel
         private val minAmountInput = MutableStateFlow("")
         private val maxAmountInput = MutableStateFlow("")
         private val selectedAccountIds = MutableStateFlow<List<String>>(emptyList())
+        private val selectedCategoryId = MutableStateFlow<String?>(null)
         private var refreshJob: Job? = null
 
         init {
@@ -119,24 +121,32 @@ class HomeViewModel
                                 maxCents,
                             )
                         }
+                    val filterFlow =
+                        combine(
+                            searchQuery
+                                .map { it.trim() }
+                                .map { it.takeIf(String::isNotEmpty) }
+                                .distinctUntilChanged(),
+                            startDate,
+                            endDate,
+                            amountRangeFlow,
+                            selectedAccountIds,
+                        ) { keyword, start, end, amountRange, accounts ->
+                            TransactionFilter(
+                                keyword = keyword,
+                                startTime = start,
+                                endTime = end,
+                                minAmount = amountRange.minAmount,
+                                maxAmount = amountRange.maxAmount,
+                                accountIds = accounts.takeIf { it.isNotEmpty() },
+                                categoryId = null,
+                            )
+                        }
                     combine(
-                        searchQuery
-                            .map { it.trim() }
-                            .map { it.takeIf(String::isNotEmpty) }
-                            .distinctUntilChanged(),
-                        startDate,
-                        endDate,
-                        amountRangeFlow,
-                        selectedAccountIds,
-                    ) { keyword, start, end, amountRange, accounts ->
-                        TransactionFilter(
-                            keyword = keyword,
-                            startTime = start,
-                            endTime = end,
-                            minAmount = amountRange.minAmount,
-                            maxAmount = amountRange.maxAmount,
-                            accountIds = accounts.takeIf { it.isNotEmpty() },
-                        )
+                        filterFlow,
+                        selectedCategoryId,
+                    ) { filter, categoryId ->
+                        filter.copy(categoryId = categoryId)
                     }.distinctUntilChanged()
                         .flatMapLatest { filter ->
                             queryTransactionsUseCase(
@@ -147,6 +157,7 @@ class HomeViewModel
                                     minAmount = filter.minAmount,
                                     maxAmount = filter.maxAmount,
                                     accountIds = filter.accountIds,
+                                    categoryId = filter.categoryId,
                                     keyword = filter.keyword,
                                     sortField = TransactionSortField.OCCURRED_AT,
                                     sortDirection = SortDirection.DESC,
@@ -291,6 +302,16 @@ class HomeViewModel
             _uiState.update { state -> state.copy(selectedAccountIds = emptyList()) }
             selectedAccountIds.value = emptyList()
         }
+
+        fun updateSelectedCategoryId(categoryId: String) {
+            _uiState.update { state -> state.copy(selectedCategoryId = categoryId) }
+            selectedCategoryId.value = categoryId
+        }
+
+        fun clearCategorySelection() {
+            _uiState.update { state -> state.copy(selectedCategoryId = null) }
+            selectedCategoryId.value = null
+        }
     }
 
 private data class TimeRange(
@@ -305,6 +326,7 @@ private data class TransactionFilter(
     val minAmount: Long?,
     val maxAmount: Long?,
     val accountIds: List<String>?,
+    val categoryId: String?,
 )
 
 private data class AmountRange(
