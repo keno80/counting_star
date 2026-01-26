@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
@@ -52,6 +53,8 @@ data class HomeUiState(
     val searchQuery: String = "",
     val startDate: Long? = null,
     val endDate: Long? = null,
+    val minAmountInput: String = "",
+    val maxAmountInput: String = "",
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -70,6 +73,8 @@ class HomeViewModel
         private val searchQuery = MutableStateFlow("")
         private val startDate = MutableStateFlow<Long?>(null)
         private val endDate = MutableStateFlow<Long?>(null)
+        private val minAmountInput = MutableStateFlow("")
+        private val maxAmountInput = MutableStateFlow("")
         private var refreshJob: Job? = null
 
         init {
@@ -107,8 +112,23 @@ class HomeViewModel
                             .distinctUntilChanged(),
                         startDate,
                         endDate,
-                    ) { keyword, start, end ->
-                        TransactionFilter(keyword = keyword, startTime = start, endTime = end)
+                        minAmountInput,
+                        maxAmountInput,
+                    ) { keyword, start, end, minInput, maxInput ->
+                        val minCents = amountInputToCents(minInput)
+                        val maxCents = amountInputToCents(maxInput)
+                        val amountRange =
+                            normalizeAmountRange(
+                                minCents,
+                                maxCents,
+                            )
+                        TransactionFilter(
+                            keyword = keyword,
+                            startTime = start,
+                            endTime = end,
+                            minAmount = amountRange.minAmount,
+                            maxAmount = amountRange.maxAmount,
+                        )
                     }.distinctUntilChanged()
                         .flatMapLatest { filter ->
                             queryTransactionsUseCase(
@@ -116,6 +136,8 @@ class HomeViewModel
                                     ledgerId = ledgerId,
                                     startTime = filter.startTime,
                                     endTime = filter.endTime,
+                                    minAmount = filter.minAmount,
+                                    maxAmount = filter.maxAmount,
                                     keyword = filter.keyword,
                                     sortField = TransactionSortField.OCCURRED_AT,
                                     sortDirection = SortDirection.DESC,
@@ -225,6 +247,24 @@ class HomeViewModel
             startDate.value = null
             endDate.value = null
         }
+
+        fun updateMinAmountInput(input: String) {
+            _uiState.update { current -> current.copy(minAmountInput = input) }
+            minAmountInput.value = input
+        }
+
+        fun updateMaxAmountInput(input: String) {
+            _uiState.update { current -> current.copy(maxAmountInput = input) }
+            maxAmountInput.value = input
+        }
+
+        fun clearAmountRange() {
+            _uiState.update { current ->
+                current.copy(minAmountInput = "", maxAmountInput = "")
+            }
+            minAmountInput.value = ""
+            maxAmountInput.value = ""
+        }
     }
 
 private data class TimeRange(
@@ -236,7 +276,32 @@ private data class TransactionFilter(
     val keyword: String?,
     val startTime: Long?,
     val endTime: Long?,
+    val minAmount: Long?,
+    val maxAmount: Long?,
 )
+
+private data class AmountRange(
+    val minAmount: Long?,
+    val maxAmount: Long?,
+)
+
+private fun normalizeAmountRange(
+    minAmount: Long?,
+    maxAmount: Long?,
+): AmountRange =
+    if (minAmount != null && maxAmount != null && minAmount > maxAmount) {
+        AmountRange(minAmount = maxAmount, maxAmount = minAmount)
+    } else {
+        AmountRange(minAmount = minAmount, maxAmount = maxAmount)
+    }
+
+private fun amountInputToCents(input: String): Long? {
+    val value = input.toBigDecimalOrNull() ?: return null
+    return value
+        .movePointRight(2)
+        .setScale(0, RoundingMode.HALF_UP)
+        .toLong()
+}
 
 private fun StatisticsSummary.toUi(): HomeSummaryUi =
     HomeSummaryUi(

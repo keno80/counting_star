@@ -252,6 +252,8 @@ fun FilterScreen(viewModel: HomeViewModel = hiltViewModel()) {
     var datePickerTarget by remember { mutableStateOf<DatePickerTarget?>(null) }
     val startDate = uiState.startDate
     val endDate = uiState.endDate
+    val minAmountInput = uiState.minAmountInput
+    val maxAmountInput = uiState.maxAmountInput
 
     if (datePickerTarget != null) {
         val initialDate = startDate ?: endDate ?: System.currentTimeMillis()
@@ -317,6 +319,29 @@ fun FilterScreen(viewModel: HomeViewModel = hiltViewModel()) {
         if (startDate != null || endDate != null) {
             TextButton(onClick = viewModel::clearDateRange) {
                 Text("清空日期")
+            }
+        }
+        Text(
+            text = "金额区间",
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            AmountInput(
+                amount = minAmountInput,
+                onAmountChange = viewModel::updateMinAmountInput,
+                modifier = Modifier.weight(1f),
+                label = "最小金额",
+            )
+            AmountInput(
+                amount = maxAmountInput,
+                onAmountChange = viewModel::updateMaxAmountInput,
+                modifier = Modifier.weight(1f),
+                label = "最大金额",
+            )
+        }
+        if (minAmountInput.isNotBlank() || maxAmountInput.isNotBlank()) {
+            TextButton(onClick = viewModel::clearAmountRange) {
+                Text("清空金额")
             }
         }
         Text(
